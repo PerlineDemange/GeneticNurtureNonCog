@@ -1,0 +1,82 @@
+# Meta-analysis steps
+
+# Meta-analysis EA 
+## Check summary statistics sent by Aysu, EA3 excluding UKB, NTR, 23andMe
+#########################################
+## Sample Size 
+Sample size calculated from paper: 317094
+23andMe: 365,538
+UKB: 442,183
+NTR: 5246
+NESDA: 1820
+total: 1131881-365538-442183-5246-1820 = 317094
+
+From summary statistics I see N is sometimes 318916 : 317094+1820: 318914.. I know from the NonCog project that there might be a mistake of 2 ind in the sample size count, 
+so it seems NESDA is still in summary statistics. 
+This is fine because we do not have the relevant outocmes in NESDA! 
+
+So sample size for EA-Aysu: 318,916
+
+number of snps: 5255434
+
+## Preprocess sumstats Aysu EA3 to same format 
+format: rsID    Chr     BP      EA      OA      EAF     N       P       BETA    SE
+echo -e "SNP Chr BP A1 A2 AF1 N P BETA SE" > header
+sed -i 1d EA3_excl_23andMe_NTR_UKB.meta
+cat header EA3_excl_23andMe_NTR_UKB.meta > EA3_excl_23andMe_NTR_UKB.meta.cl
+
+
+## Sample Size 
+388196
+number of snps: 1246532
+## Format sumstats EA UKB excluding holdouts fastgwa in HMC
+CHR     SNP     POS     A1      A2      N       AF1     BETA    SE      P
+
+
+
+# check genetic correlation
+/home/vubiopsy/GWAS/resources/software/ldsc/munge_sumstats.py \
+--sumstats EA3_excl_23andMe_NTR_UKB.meta.cl \
+--snp SNP \
+--a1 A1 \
+--a2 A2 \
+--p P \
+--frq AF1 \
+--N 318916 \
+--merge-alleles /home/vubiopsy/GWAS/resources/LDScores/w_hm3.snplist \
+--out EA3_excl_23andMe_NTR_UKB.meta.cl.LDSC 
+
+/home/vubiopsy/GWAS/resources/software/ldsc/munge_sumstats.py \
+--sumstats ukb.GWAS.EA.25PCs.unrelatedtoexcluded.fastGWA \
+--snp SNP \
+--a1 A1 \
+--a2 A2 \
+--p P \
+--frq AF1 \
+--N 388196 \
+--merge-alleles /home/vubiopsy/GWAS/resources/LDScores/w_hm3.snplist \
+--out ukb.GWAS.EA.25PCs.unrelatedtoexcluded.LDSC
+
+/home/vubiopsy/GWAS/resources/software/ldsc/ldsc.py \
+--rg ukb.GWAS.EA.25PCs.unrelatedtoexcluded.LDSC.sumstats.gz,EA3_excl_23andMe_NTR_UKB.meta.cl.LDSC.sumstats.gz \
+--ref-ld-chr /home/pdemange/CogNonCog/Genetic_Correlations/Input/eur_w_ld_chr/ \
+--w-ld-chr /home/pdemange/CogNonCog/Genetic_Correlations/Input/eur_w_ld_chr/ \
+--out rg_EA_Aysu_UKBwoholdout
+
+
+Genetic Correlation
+-------------------
+Genetic Correlation: 0.966 (0.0137)
+Z-score: 70.6167
+P: 0.
+
+
+
+### RUN the meta-analysis using METAL 
+
+mv metal_EA_run_file.txt metal_EA_run_file
+
+module load metal 
+metal < metal_EA_run_file
+
+number of snps: 1088365

@@ -1,0 +1,31 @@
+# PERFORM META-ANALYSIS based on effect size and on test statistic
+
+# Loading in the input files with results from the  participating samples 
+# Note: Metanalysis EA3 excluding 23andme, UKb and NTR, with EA in UKB exlcuding holdouts for genetic nurture project 
+# Phenotype is Education years 
+# Perline Demange February 2020
+
+
+# OPTIONS 
+MINMAXFREQ ON
+AVERAGEFREQ ON
+GENOMICCONTROL OFF
+
+# === DESCRIBE AND PROCESS THE FIRST  and Second INPUT FILE, with same format ===
+
+MARKER  SNP
+ALLELE  A1 A2
+PVALUE  P
+EFFECT  BETA
+STDERR  SE
+WEIGHT  N 
+FREQ  AF1
+	
+PROCESS ukb.GWAS.EA.25PCs.unrelatedtoexcluded.fastGWA
+PROCESS EA3_excl_23andMe_NTR_UKB.meta.cl
+	
+OUTFILE meta_EA_210220 .txt
+./YOURFILE.sh > log.txt
+	
+MINWEIGHT 500000 
+ANALYZE

@@ -1,0 +1,299 @@
+## Script to run a GWAS of EduYears in UKB excluding siblings, adoptees and control non-adopted
+############################################################
+
+## Set up LISA to run GWAS with Abdel's project 
+##################################
+
+ssh pdemange@login4.lisa.surfsara.nl
+screen -S ukb
+screen -x ukb 
+
+srun -N 1 -t 24:00:00 --pty bash
+
+cd $HOME/UKB/EA
+
+ln -s /project/ukbaumc/UKBGWAS/genotypes/HM3/ HM3
+ln -s /project/ukbaumc/UKBGWAS/genotypes/HRC/ HRC
+ln -s /project/ukbaumc/UKBGWAS/GRM/ GRM
+ln -s /project/ukbaumc/UKBGWAS/phenotypes/ phenotypes
+ln -s /project/ukbaumc/UKBGWAS/polygenic_scores/ polygenic_scores
+ln -s /project/ukbaumc/UKBGWAS/software/ software
+
+module load pre2019
+module load python/3.4.2
+
+
+## Get Phenotypes: EA, Adoption status 
+####################################
+
+echo "Field,Description" > EA.in.csv
+echo "6138,Qualification" >> EA.in.csv
+echo "1767,Adopted" >> EA.in.csv
+
+python3 phenotypes/extract_ukbb_variables.py \
+phenotypes/ukb30545.csv \
+EA.in.csv \
+EA.out.csv 
+
+# this file contains all measures for EA: several instances and several arays, we need 6138-0.0
+# It contains three instances for adoption status 
+
+module load R/3.2.1
+R
+setwd("/home/pdemange/UKB/EA/")
+phenos <- read.csv("EA.out.csv",header=T,sep = ",")
+
+nrow(phenos) #502536
+summary(phenos)
+table(phenos$X6138)
+# Na Ea: 4645 + -3: 5493, Na adoption: 900 
+
+# Recode EduYears, ISCED 
+phenos$YearsEdu.ISCED[phenos$X6138.0.0 == -7] <- 7
+phenos$YearsEdu.ISCED[phenos$X6138.0.0 == 3] <- 10
+phenos$YearsEdu.ISCED[phenos$X6138.0.0 == 4] <- 10
+phenos$YearsEdu.ISCED[phenos$X6138.0.0 == 2] <- 13
+phenos$YearsEdu.ISCED[phenos$X6138.0.0 == 6] <- 15
+phenos$YearsEdu.ISCED[phenos$X6138.0.0 == 5] <- 19
+phenos$YearsEdu.ISCED[phenos$X6138.0.0 == 1] <- 20
+
+# Recode adoption 1: adopted, 0: non-adopted 
+phenos$adopted <- with(phenos, ifelse((!is.na(phenos$X1767.0.0) & phenos$X1767.0.0 == 1) |
+                                       (!is.na(phenos$X1767.1.0) & phenos$X1767.1.0 == 1) |
+                                       (!is.na(phenos$X1767.2.0) & phenos$X1767.2.0 == 1), 1, 0))
+table(phenos$adopted) # 0: 495099, 1:7437									   
+									   
+## Identify Siblings and related 
+##################################
+
+# Identify relatedness relationship
+
+relatedness <- read.table("./GRM/relatedness_file.txt", header=T)
+relatedness$relation[relatedness$Kinship > (1/(2^(3/2)))] <- "mztwins"
+relatedness$relation[relatedness$Kinship < (1/(2^(3/2))) & relatedness$Kinship > (1/(2^(5/2))) & relatedness$IBS0 < 0.0012] <- "parents"
+relatedness$relation[relatedness$Kinship < (1/(2^(3/2))) & relatedness$Kinship > (1/(2^(5/2))) & relatedness$IBS0 > 0.0012] <- "fullsibs"
+relatedness$relation[relatedness$Kinship < (1/(2^(5/2))) & relatedness$Kinship > (1/(2^(7/2)))] <- "deg2"
+relatedness$relation[relatedness$Kinship < (1/(2^(7/2))) & relatedness$Kinship > (1/(2^(9/2)))] <- "deg3"
+relatedness$relation[relatedness$Kinship < (1/(2^(9/2)))] <- "unrelated" #all individuals in the relatedness file are related so these are issues 
+relatedness <- relatedness[which(!relatedness$relation == "unrelated"),] # remove the two rows with issues from the relatedness file 
+
+sib <- subset(relatedness, relatedness$relation == "fullsibs")
+phenos$relation <- ifelse(phenos$eid %in% sib$ID1| phenos$eid %in% sib$ID2 , "fullsibs", "Na") 
+
+# Temporary save
+#######################
+write.table(phenos, file="pheno_temp", row.names=F, quote=F) 
+phenos <- read.table("pheno_temp", header=T) 
+
+### Exclude participants with missing sex and age by merge with covariate files created by Abdel + participants withdrawing
+#############################################################
+
+# Sex
+sex <- read.table("/project/ukbaumc/UKBGWAS/phenotypes/sex.array.cov") 
+colnames(sex) <- c("IID", "FID", "sex", "array")
+phenos_sex <- merge(phenos, sex, by.x="eid", by.y="IID") 
+nrow(phenos) # 502536
+nrow(phenos_sex) #455979 same as sex
+
+# Age
+age <- read.table("/project/ukbaumc/UKBGWAS/phenotypes/age.25PCs.qcov") 
+colnames(age) <- c("IID", "FID", "PC1", "PC2", "PC3", "PC4", "PC5", "PC6", "PC7", "PC8", "PC9", "PC10", "PC11", "PC12", "PC13",
+ "PC14", "PC15", "PC16", "PC17", "PC18", "PC19", "PC20", "PC21", "PC22", "PC23", "PC24", "PC25", "Age")
+phenos_sexage <- merge(phenos_sex, age, by.x="eid", by.y="IID") 
+nrow(phenos_sexage) #455979
+# Participants withdrawing 
+withdraw <- read.table("../withdraw_w40310_20200204.csv") 
+phenos_sexage_withdraw <- phenos_sexage[which(!phenos_sexage$eid %in% withdraw$V1), ]
+nrow(phenos_sexage_withdraw) #455961, 18 participants excluded 
+
+# Genotyping cleanup excluded? 
+
+# Clean and Save
+phenos_cl <- phenos_sexage_withdraw[c("eid","eid","YearsEdu.ISCED", "adopted", "relation")]
+colnames(phenos_cl) <- c("IID","FID","YearsEdu.ISCED", "Adopted", "Fullsibs")
+
+phenos_compl <- phenos_cl[complete.cases(phenos_cl), ] #451229, removes 4732 missing EA data
+write.table(phenos_compl, file="pheno_compl", row.names=F, quote=F) 
+
+table(phenos_compl$Adopted, phenos_compl$Fullsibs)
+
+phenos_compl <- read.table("pheno_compl", header=T) 
+
+
+### Create datasets with adoptees, non-adoptees, siblings and rest 
+###########################################
+## Adoptees and non-adopted controls: 
+## Adoptees can not be related to each other 
+## non-adopted can not be related to each other
+## adoptees and non-adopted can not be related to each other 
+
+adoptees <-  phenos_compl[which(phenos_compl$Adopted == 1), ] # 6510
+# adoptees that are in the relatedness file
+adoptees_related <- adoptees[which(adoptees$IID %in% relatedness$ID1| adoptees$IID %in% relatedness$ID2),]  #1665
+# get the list of the IID related with the adoptees (if adoptees in ID1)
+relatedID1 <- relatedness[which(relatedness$ID1 %in% adoptees_related$IID),]
+listrelated <- relatedID1$ID2 #1125
+# get the list of the IID related with the adoptees (if adoptees in ID2)
+relatedID2 <- relatedness[which(relatedness$ID2 %in% adoptees_related$IID),]
+listrelated2 <- relatedID2$ID1 #1128
+# list of IID related to the adoptees
+listrelatedtotadop <- c(listrelated, listrelated2) #2253
+# remove them from the adoptees data
+adoptees_unrelated <- adoptees[which(!adoptees$IID %in% listrelatedtotadop),] #6407: 103 adoptees were related to each other 
+
+## Get non-adopted 
+# remove adopted from pool of individuals 
+nonadopted <- phenos_compl[which(phenos_compl$Adopted == 0), ] #44719
+# remove individual related to adoptees from nonadoptees 
+nonadopted <- nonadopted[which(!nonadopted$IID %in% listrelatedtotadop),] #442646
+
+# get unrelated nonadopted randomly 
+library(dplyr)
+nonadopted_sub<- sample_n(nonadopted, 20000)
+# get id of individuals that are related to someone 
+nonadopted_related <- nonadopted_sub[which(nonadopted_sub$IID %in% relatedness$ID1| nonadopted_sub$IID %in% relatedness$ID2),] 
+# get the list of the IID related with the nonadopted (if nonadoptedin ID1)
+relatedID1 <- relatedness[which(relatedness$ID1 %in%  nonadopted_related$IID ),]
+listrelated <- relatedID1$ID2 
+# get the list of the IID related with the nonadopted (if nonadoptedin ID2)
+relatedID2 <- relatedness[which(relatedness$ID2 %in% nonadopted_related$IID),]
+listrelated2 <- relatedID2$ID1 
+# list of IID related to the noandopted
+listrelatedtotsub <- c(listrelated, listrelated2) #8794
+nonadopted_unrelated <- nonadopted_sub[which(!nonadopted_sub$IID %in% listrelatedtotsub),] #19635
+
+# sample 6500 individuals from this independent random sample 
+nonadopted_6.5k  <- sample_n(nonadopted_unrelated, 6500)
+
+# check that they are unrelated to each other 
+nonadopted_related <- nonadopted_6.5k[which(nonadopted_6.5k$IID %in% relatedness$ID1| nonadopted_6.5k$IID %in% relatedness$ID2),]  
+relatedID1 <- relatedness[which(relatedness$ID1 %in% nonadopted_related$IID),]
+listrelated <- relatedID1$ID2 
+relatedID2 <- relatedness[which(relatedness$ID2 %in% nonadopted_related$IID),]
+listrelated2 <- relatedID2$ID1 
+listrelatedtot_6.5k <- c(listrelated, listrelated2) 
+nonadopted_related <- nonadopted_6.5k[which(nonadopted_6.5k$IID %in% listrelatedtot_6.5k),] 
+nrow(nonadopted_related) 
+nonadopted_6.5k_unrelated <- nonadopted_6.5k[which(!nonadopted_6.5k$IID %in% listrelatedtot_6.5k),] 
+
+
+## Siblings can not be adopted 
+
+siblings <- phenos_compl[which(phenos_compl$Fullsibs == "fullsibs"), ] #39569,  some sibs are in the nonadopted sample
+siblings <- siblings[which(siblings$Adopted == 0), ] #39500, 69 siblings were also adopted 
+
+## remove these from data 
+gwasdata <- phenos_compl[which(phenos_compl$Fullsibs == "Na")  , ] #411660 (total - fullsibs)
+gwasdata <- gwasdata[which(gwasdata$Adopted == 0)  , ] #405219 (total -fullsib -adopted)
+gwasdata <- gwasdata[which(!gwasdata$IID %in% nonadopted_6.5k_unrelated$IID), ] #399274  (555) are both full sib and in the control nonadopted))
+
+## Save
+write.table(adoptees_unrelated, file="adoptees.csv", row.names=F, quote=F) 
+write.table(nonadopted_6.5k_unrelated, file="nonadopted_6.5k.csv", row.names=F, quote=F) 
+write.table(siblings, file="siblings.csv", row.names=F, quote=F) 
+write.table(gwasdata, file="gwasdatawithrelated", row.names=F, quote=F) 
+
+
+### Identify family of holdouts and remove them 
+########################################################
+
+adoptees_related <- adoptees_unrelated[which(adoptees_unrelated$IID %in% relatedness$ID1| adoptees_unrelated$IID %in% relatedness$ID2),]  #1562
+nonadopted_6.5k_related <- nonadopted_6.5k_unrelated[which(nonadopted_6.5k_unrelated$IID %in% relatedness$ID1| nonadopted_6.5k_unrelated$IID %in% relatedness$ID2),] #1963 
+siblings_related <- siblings[which(siblings$IID %in% relatedness$ID1| siblings$IID %in% relatedness$ID2),] # all siblings ofc, 39500
+toexclude_related <- rbind(adoptees_related, nonadopted_6.5k_related, siblings_related)
+relatedID1 <- relatedness[which(relatedness$ID1 %in% toexclude_related$IID),]
+listrelated <- relatedID1$ID2 #33084
+relatedID2 <- relatedness[which(relatedness$ID2 %in% toexclude_related$IID),]
+listrelated2 <- relatedID2$ID1 #32795
+listrelatedtottot <- c(listrelated, listrelated2) #65879
+
+gwasdata_unrelated <- gwasdata[which(!gwasdata$IID %in% listrelatedtottot),] #388196
+
+write.table(gwasdata_unrelated, file="gwasdata_unrelatedtoexcluded", row.names=F, quote=F) 
+
+### Save data 
+######################
+gwasdata_unrelated_cl <- gwasdata_unrelated[c("IID", "FID", "YearsEdu.ISCED")]
+write.table(gwasdata_unrelated_cl , file="gwasdata_final", row.names=F, quote=F, col.names=F) 
+
+q()
+
+#rename 
+mv gwasdata_final EA.pheno
+
+
+### Run GWAS EA 
+########################
+## With HM3
+
+software/gcta64 \
+--bfile HM3/ukb_imp.HM3.EUR.v3 \
+--fastGWA-lmm \
+--grm-sparse GRM/ukb_imp.HM3.EUR.v4.sp \
+--pheno EA.pheno \
+--qcovar phenotypes/age.25PCs.qcov \
+--covar phenotypes/sex.array.cov \
+--est-vg HE \
+--threads 10 \
+--out ukb.GWAS.EA.25PCs.unrelatedtoexcluded &
+
+# sample size= 388196
+
+## Check GWAS
+# Manhattan plot 
+
+R
+library(qqman)
+library(data.table)
+gwas <- read.table("ukb.GWAS.EA.25PCs.unrelatedtoexcluded.fastGWA",header=T)
+colnames(gwas)
+setnames(gwas, "POS", "BP")
+gwas <- gwas[gwas$P > 0,]
+
+png("manhattan.EA.25PCs.unrelatedtoexcluded.png",
+width = 10,
+height = 6,
+units = 'in',
+res = 600)
+manhattan(gwas,
+main = "UKB - EA",
+col = c("slategray3", "slategray4"),
+suggestiveline=-log10(5e-8),
+genomewideline=-log10(1e-8))
+dev.off()
+
+# QQplot 
+png("qq.EA.25PCs.unrelatedtoexcluded.png",
+width = 6,
+height = 6,
+units = 'in',
+res = 600)
+qq(gwas$P)
+dev.off()
+
+q()
+
+# Analyze inflation and snp based heritability 
+
+#module load eb
+#module load Miniconda2
+#source activate ldsc ?
+
+software/ldsc/munge_sumstats.py \
+--sumstats ukb.GWAS.EA.25PCs.unrelatedtoexcluded.fastGWA \
+--N 388196 \
+--merge-alleles software/ldsc/w_hm3.snplist \
+--out ukb.GWAS.EA.25PCs.unrelatedtoexcluded.LDSC &
+
+software/ldsc/ldsc.py \
+--h2 ukb.GWAS.EA.25PCs.unrelatedtoexcluded.LDSC.sumstats.gz \
+--ref-ld-chr software/ldsc/eur_w_ld_chr/ \
+--w-ld-chr software/ldsc/eur_w_ld_chr/ \
+--out ukb.GWAS.EA.25PCs.unrelatedtoexcluded.LDSC.h2
+
+
+Total Observed scale h2: 0.1592 (0.0047)
+Lambda GC: 2.0302
+Mean Chi^2: 2.3943
+Intercept: 1.1605 (0.0133)
+Ratio: 0.1151 (0.0096)
