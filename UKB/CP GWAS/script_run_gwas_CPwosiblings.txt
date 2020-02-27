@@ -1,0 +1,227 @@
+## Script to run a GWAS of EduYears in UKB excluding siblings, adoptees and control non-adopted
+############################################################
+
+## Set up LISA to run GWAS with Abdel's project 
+##################################
+
+ssh pdemange@login4.lisa.surfsara.nl
+screen -S ukb
+screen -x ukb 
+
+srun -N 1 -t 24:00:00 --pty bash
+
+cd $HOME/UKB/CP
+
+ln -s /project/ukbaumc/UKBGWAS/genotypes/HM3/ HM3
+ln -s /project/ukbaumc/UKBGWAS/genotypes/HRC/ HRC
+ln -s /project/ukbaumc/UKBGWAS/GRM/ GRM
+ln -s /project/ukbaumc/UKBGWAS/phenotypes/ phenotypes
+ln -s /project/ukbaumc/UKBGWAS/polygenic_scores/ polygenic_scores
+ln -s /project/ukbaumc/UKBGWAS/software/ software
+
+module load pre2019
+module load python/3.4.2
+
+
+## Get Phenotypes: CP in person and online assessment, Adoption status 
+####################################
+
+echo "Field,Description" > CP.in.csv
+echo "20016,inperson" >> CP.in.csv
+echo "20191,online" >> CP.in.csv
+echo "1767,Adopted" >> CP.in.csv
+
+python3 phenotypes/extract_ukbb_variables.py \
+phenotypes/ukb30545.csv \
+CP.in.csv \
+CP.out.csv 
+
+module load R/3.2.1
+R
+setwd("/home/pdemange/UKB/CP/")
+phenos <- read.csv("CP.out.csv",header=T,sep = ",")
+
+# recode Adoption
+phenos$adopted <- with(phenos, ifelse((!is.na(phenos$X1767.0.0) & phenos$X1767.0.0 == 1) |
+                                       (!is.na(phenos$X1767.1.0) & phenos$X1767.1.0 == 1) |
+                                       (!is.na(phenos$X1767.2.0) & phenos$X1767.2.0 == 1), 1, 0))
+table(phenos$adopted) # 0: 495099, 1:7437		
+
+
+## CP need to be changed similarly as Lee et al. "Standardized score on a test of 
+#"verbal-numerical reasoning (data field 20016 for in-person assessments and data 
+#field 20191 for an online follow-up). The test contains thirteen logic and reasoning
+# questions with a two-minute time limit and was designed as a measure of 
+# fluid intelligence. Each respondents took the test up to four times, and we use the 
+# mean of the standardized scores, which was then standardized (and residualized, as
+# described in the UKB row of Table S1.4).
+
+phenos$fluid<- rowMeans(phenos[c("X20016.0.0", "X20016.1.0", "X20016.2.0", "X20191.0.0")],na.rm=T )
+phenos$fluidscaled <- scale(phenos$fluid)
+
+### Exclude participants with missing sex and age by merge with covariate files created by Abdel + participants withdrawing
+#############################################################
+
+# Sex
+sex <- read.table("/project/ukbaumc/UKBGWAS/phenotypes/sex.array.cov") 
+colnames(sex) <- c("IID", "FID", "sex", "array")
+phenos_sex <- merge(phenos, sex, by.x="eid", by.y="IID") 
+nrow(phenos) # 502536
+nrow(phenos_sex) #455979 same as sex
+
+# Age
+age <- read.table("/project/ukbaumc/UKBGWAS/phenotypes/age.25PCs.qcov") 
+colnames(age) <- c("IID", "FID", "PC1", "PC2", "PC3", "PC4", "PC5", "PC6", "PC7", "PC8", "PC9", "PC10", "PC11", "PC12", "PC13",
+ "PC14", "PC15", "PC16", "PC17", "PC18", "PC19", "PC20", "PC21", "PC22", "PC23", "PC24", "PC25", "Age")
+phenos_sexage <- merge(phenos_sex, age, by.x="eid", by.y="IID") 
+nrow(phenos_sexage) #455979
+# Participants withdrawing 
+withdraw <- read.table("../withdraw_w40310_20200204.csv") 
+phenos_sexage_withdraw <- phenos_sexage[which(!phenos_sexage$eid %in% withdraw$V1), ]
+nrow(phenos_sexage_withdraw) #455961, 18 participants excluded 
+
+# Clean and Save
+phenos_cl <- phenos_sexage_withdraw[c("eid","eid","adopted", "fluid", "fluidscaled")]
+colnames(phenos_cl) <- c("IID","FID","Adopted", "FluidIntelligence", "FIscaled")
+phenos_compl <- phenos_cl[complete.cases(phenos_cl), ] #234397
+write.table(phenos_compl, file="pheno_compl", row.names=F, quote=F) 
+
+phenos_compl <- read.table("pheno_compl", header=T) #2344397
+
+
+### Remove the holdouts samples 
+
+adoptees <- read.table("../EA/adoptees.csv", header=T) 
+nonadopted <- read.table("../EA/nonadopted_6.5k.csv", header=T) 
+siblings <- read.table("../EA/siblings.csv", header=T) 
+
+phenos_woadop <- phenos_compl[which(!phenos_compl$IID %in% adoptees$IID),] #231224
+phenos_woadopcont <- phenos_woadop[which(!phenos_woadop$IID %in% nonadopted$IID),] #227870
+phenos_woadopcontsib <- phenos_woadopcont[which(!phenos_woadopcont$IID %in% siblings$IID),] #208106
+
+### Remove related individuals to adoptees, nonadopted, siblings 
+## arrange relatedness data, identify relationship
+relatedness <- read.table("./GRM/relatedness_file.txt", header=T)
+relatedness$relation[relatedness$Kinship > (1/(2^(3/2)))] <- "mztwins"
+relatedness$relation[relatedness$Kinship < (1/(2^(3/2))) & relatedness$Kinship > (1/(2^(5/2))) & relatedness$IBS0 < 0.0012] <- "parents"
+relatedness$relation[relatedness$Kinship < (1/(2^(3/2))) & relatedness$Kinship > (1/(2^(5/2))) & relatedness$IBS0 > 0.0012] <- "fullsibs"
+relatedness$relation[relatedness$Kinship < (1/(2^(5/2))) & relatedness$Kinship > (1/(2^(7/2)))] <- "deg2"
+relatedness$relation[relatedness$Kinship < (1/(2^(7/2))) & relatedness$Kinship > (1/(2^(9/2)))] <- "deg3"
+relatedness$relation[relatedness$Kinship < (1/(2^(9/2)))] <- "unrelated" #all individuals in the relatedness file are related so these are issues 
+relatedness <- relatedness[which(!relatedness$relation == "unrelated"),] # remove the two rows with issues from the relatedness file #107124
+
+# remove related to holdouts
+adoptees_related <- adoptees[which(adoptees$IID %in% relatedness$ID1| adoptees$IID %in% relatedness$ID2),]  #1562
+nonadopted_6.5k_related <- nonadopted[which(nonadopted$IID %in% relatedness$ID1| nonadopted$IID %in% relatedness$ID2),] #1963 
+siblings_related <- siblings[which(siblings$IID %in% relatedness$ID1| siblings$IID %in% relatedness$ID2),] # all siblings ofc, 39500
+toexclude_related <- rbind(adoptees_related, nonadopted_6.5k_related, siblings_related)
+relatedID1 <- relatedness[which(relatedness$ID1 %in% toexclude_related$IID),]
+listrelated <- relatedID1$ID2 #33084
+relatedID2 <- relatedness[which(relatedness$ID2 %in% toexclude_related$IID),]
+listrelated2 <- relatedID2$ID1 #32795
+listrelatedtottot <- c(listrelated, listrelated2) #65879
+
+gwasdataCP_unrelated <- phenos_woadopcontsib[which(!phenos_woadopcontsib$IID %in% listrelatedtottot),] #202815
+
+#Save data 
+write.table(gwasdataCP_unrelated, file="gwasdataCP_unrelatedtoexcluded", row.names=F, quote=F) 
+
+gwasdataCP_unrelated_cl <- gwasdataCP_unrelated[c("IID", "FID", "FIscaled")]
+write.table(gwasdataCP_unrelated_cl , file="gwasdataCP_final", row.names=F, quote=F, col.names=F) 
+
+
+q()
+
+#rename 
+mv gwasdataCP_final CP.pheno
+
+
+### Run GWAS EA 
+########################
+## With HM3
+
+software/gcta64 \
+--bfile HM3/ukb_imp.HM3.EUR.v3 \
+--fastGWA-lmm \
+--grm-sparse GRM/ukb_imp.HM3.EUR.v4.sp \
+--pheno CP.pheno \
+--qcovar phenotypes/age.25PCs.qcov \
+--covar phenotypes/sex.array.cov \
+--est-vg HE \
+--threads 10 \
+--out ukb.GWAS.CP.25PCs.unrelatedtoexcluded &
+
+
+# sample size= 202815
+
+## Check GWAS
+# Manhattan plot 
+
+R
+library(qqman)
+library(data.table)
+gwas <- read.table("ukb.GWAS.CP.25PCs.unrelatedtoexcluded.fastGWA",header=T)
+colnames(gwas)
+setnames(gwas, "POS", "BP")
+#gwas <- gwas[gwas$P > 0,]
+
+png("manhattan.CP.25PCs.unrelatedtoexcluded.png",
+width = 10,
+height = 6,
+units = 'in',
+res = 600)
+manhattan(gwas,
+main = "UKB - CP",
+col = c("slategray3", "slategray4"),
+suggestiveline=-log10(5e-8),
+genomewideline=-log10(1e-8))
+dev.off()
+
+# QQplot 
+png("qq.CP.25PCs.unrelatedtoexcluded.png",
+width = 6,
+height = 6,
+units = 'in',
+res = 600)
+qq(gwas$P)
+dev.off()
+
+q()
+
+# Analyze inflation and snp based heritability 
+
+#module load eb
+#module load Miniconda2
+#source activate ldsc ?
+
+software/ldsc/munge_sumstats.py \
+--sumstats ukb.GWAS.CP.25PCs.unrelatedtoexcluded.fastGWA \
+--N 202815 \
+--merge-alleles software/ldsc/w_hm3.snplist \
+--out ukb.GWAS.CP.25PCs.unrelatedtoexcluded.LDSC &
+
+software/ldsc/ldsc.py \
+--h2 ukb.GWAS.CP.25PCs.unrelatedtoexcluded.LDSC.sumstats.gz \
+--ref-ld-chr software/ldsc/eur_w_ld_chr/ \
+--w-ld-chr software/ldsc/eur_w_ld_chr/ \
+--out ukb.GWAS.CP.25PCs.unrelatedtoexcluded.LDSC.h2
+
+
+Total Observed scale h2: 0.2015 (0.0072)
+Lambda GC: 1.6372
+Mean Chi^2: 1.8694
+Intercept: 1.0441 (0.0115)
+Ratio: 0.0507 (0.0132)
+
+
+
+
+
+
+
+
+
+
+
+
+

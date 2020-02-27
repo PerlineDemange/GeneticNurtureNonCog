@@ -1,0 +1,102 @@
+preprocessing meta-analysis CP
+
+
+# Cognitive performance COGENT: 
+# Sample size: 35298
+Number of SNP: 8040131
+
+cptid RSID CHR BP STRAND EFFECT_ALLELE OTHER_ALLELE EAF IMPUTATION BETA SE PVAL N MAC
+
+
+# in Lee et al. they pass this summary statistics to QC following Okbay et al. 2016
+# Imputed against september or december 2013 releases? 
+# not effect allele or other allele supplied? 
+# missing variable among EAF, beta, standard error, p-value, imputation accuracy 
+# if outside possible range for p-value
+# if MAC is below 25 
+#if snp explains more than 5% of variance of outcome
+# if low imputation qulity metrics 
+# drop indels  
+
+## For the moment we use the un QC'd version fo the summar statistcsi sent by Aysu, and we do not make extra QC
+
+echo -e "cptid SNP Chr BP strand A1 A2 AF1 imputation BETA SE P N MAC " > header
+sed -i 1d cogent.hrc.meta.chr.bp.rsid.assoc.full
+cat header cogent.hrc.meta.chr.bp.rsid.assoc.full > cogent.hrc.meta.chr.bp.rsid.assoc.full.cl
+
+
+### UKB
+## Sample Size 
+202815
+number of snps: 1246531
+## Format sumstats EA UKB excluding holdouts fastgwa in HMC
+CHR     SNP     POS     A1      A2      N       AF1     BETA    SE      P
+
+
+# check genetic correlation
+/home/vubiopsy/GWAS/resources/software/ldsc/munge_sumstats.py \
+--sumstats cogent.hrc.meta.chr.bp.rsid.assoc.full.cl \
+--snp SNP \
+--a1 A1 \
+--a2 A2 \
+--p P \
+--frq AF1 \
+--N 35298 \
+--merge-alleles /home/vubiopsy/GWAS/resources/LDScores/w_hm3.snplist \
+--out cogent.hrc.meta.chr.bp.rsid.assoc.full.cl.LDSC.
+
+/home/vubiopsy/GWAS/resources/software/ldsc/munge_sumstats.py \
+--sumstats ../../CP/ukb.GWAS.CP.25PCs.unrelatedtoexcluded.fastGWA \
+--snp SNP \
+--a1 A1 \
+--a2 A2 \
+--p P \
+--frq AF1 \
+--N 202815 \
+--merge-alleles /home/vubiopsy/GWAS/resources/LDScores/w_hm3.snplist \
+--out ukb.GWAS.CP.25PCs.unrelatedtoexcluded.LDSC
+
+/home/vubiopsy/GWAS/resources/software/ldsc/ldsc.py \
+--rg ukb.GWAS.CP.25PCs.unrelatedtoexcluded.LDSC.sumstats.gz,cogent.hrc.meta.chr.bp.rsid.assoc.full.cl.LDSC..sumstats.gz \
+--ref-ld-chr /home/pdemange/CogNonCog/Genetic_Correlations/Input/eur_w_ld_chr/ \
+--w-ld-chr /home/pdemange/CogNonCog/Genetic_Correlations/Input/eur_w_ld_chr/ \
+--out rg_CP_Cogent_UKBwoholdout
+
+
+Genetic Correlation
+-------------------
+Genetic Correlation: 0.8985 (0.0484)
+Z-score: 18.5569
+P: 7.1682e-77
+
+
+
+### RUN the meta-analysis using METAL 
+
+mv metal_CP_run_file.txt metal_CP_run_file
+
+module load metal 
+metal < metal_CP_run_file
+
+number of snps: 1 246 531
+
+sample size max: 202815 + 35298 = 238113
+
+# Check if genomic control needs to be done 
+/home/vubiopsy/GWAS/resources/software/ldsc/munge_sumstats.py \
+--sumstats meta_CP_2402201.txt \
+--N 238113 \
+--merge-alleles /home/vubiopsy/GWAS/resources/LDScores/w_hm3.snplist \
+--out meta_CP_2402201.txt.LDSC &
+
+/home/vubiopsy/GWAS/resources/software/ldsc/ldsc.py \
+--h2 meta_CP_2402201.txt.LDSC.sumstats.gz \
+--ref-ld-chr /home/vubiopsy/GWAS/resources/LDScores/eur_w_ld_chr/ \
+--w-ld-chr /home/vubiopsy/GWAS/resources/LDScores/eur_w_ld_chr/ \
+--out meta_CP_2402201.txt.LDSC.h2
+
+Total Observed scale h2: 0.1858 (0.0064)
+Lambda GC: 1.6831
+Mean Chi^2: 1.9424
+Intercept: 1.0551 (0.0118)
+Ratio: 0.0585 (0.0125)

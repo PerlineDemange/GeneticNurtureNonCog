@@ -1,0 +1,87 @@
+﻿### Get the PGS 
+###
+
+#### Create the dataset of individuals 
+#########################################
+
+#get overall PRS sample: cat together adoptees, nonadoptees, siblings 
+#ensure cols for all 3 = IID, IID, Rel (e.g. Sib, Adopted, Nonadopted)
+
+#get dataframe with IDs only for this overall dataset
+cat ../EA/siblings.csv ../EA/adoptees.csv ../EA/nonadopted_6.5k.csv > nuclear #52410
+#this also copy the headers three times
+#take ID1 from each (assuming sib file is long format)
+awk '{print $1}' nuclear > nuclear_id #52410 including three times headers
+#ensure every id row is unique # we should loose the 555 siblings that are in the nonadopted sample +2 headers
+awk '!seen[$1]++' nuclear_id > nuclear_id_unique #51853, good amount  #51852 individuals
+
+#this dataset can be used for making PRS now.
+
+#### Get subset data of the binary genotype data with relevant individuals 
+#######################
+# using plink 
+# change data to be fid idd 
+sed -i 1d nuclear_id_unique
+paste nuclear_id_unique nuclear_id_unique > nuclear_id_unique2
+
+/home/pdemange/CogNonCog/plink/plink \
+--bfile ../HM3/ukb_imp.HM3.EUR.v3 \
+--keep nuclear_id_unique2 \
+--make-bed \
+--out genotypedata/nuclear_snpdata
+
+
+### Get PRSice software 
+#######################
+# https://github.com/choishingwan/PRSice
+
+#### Create PGS 
+#####################
+
+# all snps included (barlevels 1)
+# added: ld reference http://www.prsice.info/step_by_step/
+# no need for phenos or covars at this stage. also no empirical P-value calc as we are just creating the scores
+	#--cov-file covariates.qc.all \
+	#--pheno-file /mnt/lustre/groups/ukbiobank/usr/Rosa/adopt_edu/adopted_variables_clean.pheno \
+	# --perm 10000 \
+
+paste nuclear_id_unique2 nuclear_id_unique > nuclear_id_unique3
+
+module load R/3.5.0
+
+/home/pdemange/PRSice/PRSice_linux \
+--base /home/pdemange/UKB/Meta-analysis/EA/meta_EA_withBetaSE2502.txt \ 
+--beta T \
+--stat Beta \
+--target /project/ukbaumc/UKBGWAS/genotypes/HM3/ukb_imp.HM3.EUR.v3 \ 
+--keep nuclear_id_unique2 \
+--bar-levels 1 \
+--fastscore T \
+--no-full \
+--thread 1 \
+--out output/EA_PGS 
+
+
+#--ld /home/pdemange/1000Genomes.201106.LDpred.ALL.1 \
+#--dir . \
+#--prsice /home/pdemange/PRSice/ \ 
+
+
+# change header 
+MarkerName      Allele1 Allele2 Freq1   FreqSE  MinFreq MaxFreq Weight  Zscore  P-value Direction
+
+
+echo -e "SNP A1 A2 Freq1 FreqSE MinFreq MaxFreq Weight Zscore P Direction" > header
+sed -i 1d 
+cat header cogent.hrc.meta.chr.bp.rsid.assoc.full > cogent.hrc.meta.chr.bp.rsid.assoc.full.cl
+
+
+# compute beta and se
+data$Beta <- data$Zscore / sqrt(2*data$P*(1 - data$P)*(data$Weight+ data$Zscore*data$Zscore))
+Beta = z / sqrt(2p(1− p)(n + z^2)) and
+data$SE <- 1/sqrt(2*data$P*(1 - data$P)*(data$Weight+ data$Zscore*data$Zscore))
+SE =1 / sqrt(2p(1− p)(n + z^2))
+
+->> meta_EA_withBetaSE2502.txt
+
+# doesnt work doesnt find target file 

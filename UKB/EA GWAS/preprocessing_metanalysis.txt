@@ -25,7 +25,7 @@ echo -e "SNP Chr BP A1 A2 AF1 N P BETA SE" > header
 sed -i 1d EA3_excl_23andMe_NTR_UKB.meta
 cat header EA3_excl_23andMe_NTR_UKB.meta > EA3_excl_23andMe_NTR_UKB.meta.cl
 
-
+### UKB
 ## Sample Size 
 388196
 number of snps: 1246532
@@ -80,3 +80,28 @@ module load metal
 metal < metal_EA_run_file
 
 number of snps: 1088365
+
+sample size max: 388196 + 318916 = 707112
+
+# Check if genomic control needs to be done 
+/home/vubiopsy/GWAS/resources/software/ldsc/munge_sumstats.py \
+--sumstats meta_EA_2102201.txt \
+--N 707112 \
+--merge-alleles /home/vubiopsy/GWAS/resources/LDScores/w_hm3.snplist \
+--out meta_EA_2102201.txt.LDSC &
+
+/home/vubiopsy/GWAS/resources/software/ldsc/ldsc.py \
+--h2 meta_EA_2102201.txt.LDSC.sumstats.gz \
+--ref-ld-chr /home/vubiopsy/GWAS/resources/LDScores/eur_w_ld_chr/ \
+--w-ld-chr /home/vubiopsy/GWAS/resources/LDScores/eur_w_ld_chr/ \
+--out meta_EA_2102201.txt.LDSC.h2
+
+Total Observed scale h2: 0.1204 (0.0033)
+Lambda GC: 2.4421
+Mean Chi^2: 3.0628
+Intercept: 1.223 (0.0223)
+Ratio: 0.1081 (0.0108)
+
+
+
+

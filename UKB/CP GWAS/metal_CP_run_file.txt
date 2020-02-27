@@ -1,0 +1,31 @@
+# PERFORM META-ANALYSIS based on effect size and on test statistic
+
+# Loading in the input files with results from the  participating samples 
+# Note: Metanalysis Fluid intelligence in UKB exlcuding holdouts with CP from Cogent consortium (trampush) for genetic nurture project 
+# Phenotype is Cognitive performance 
+# Perline Demange February 2020
+
+
+# OPTIONS 
+MINMAXFREQ ON
+AVERAGEFREQ ON
+GENOMICCONTROL OFF
+
+# === DESCRIBE AND PROCESS THE FIRST  and Second INPUT FILE, with same format ===
+
+MARKER  SNP
+ALLELE  A1 A2
+PVALUE  P
+EFFECT  BETA
+STDERR  SE
+WEIGHT  N 
+FREQ  AF1
+	
+PROCESS ../../CP/ukb.GWAS.CP.25PCs.unrelatedtoexcluded.fastGWA
+PROCESS cogent.hrc.meta.chr.bp.rsid.assoc.full.cl
+	
+OUTFILE meta_CP_240220 .txt
+./YOURFILE.sh > log.txt
+	
+MINWEIGHT 100000 
+ANALYZE
