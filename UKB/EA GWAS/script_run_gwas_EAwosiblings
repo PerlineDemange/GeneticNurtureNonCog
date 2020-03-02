@@ -248,7 +248,7 @@ library(data.table)
 gwas <- read.table("ukb.GWAS.EA.25PCs.unrelatedtoexcluded.fastGWA",header=T)
 colnames(gwas)
 setnames(gwas, "POS", "BP")
-gwas <- gwas[gwas$P > 0,]
+
 
 png("manhattan.EA.25PCs.unrelatedtoexcluded.png",
 width = 10,
@@ -297,3 +297,77 @@ Lambda GC: 2.0302
 Mean Chi^2: 2.3943
 Intercept: 1.1605 (0.0133)
 Ratio: 0.1151 (0.0096)
+
+
+### With HRC 
+software/gcta64 \
+--mbfile HRC/ukb_imp.HRC.EUR.v2.bfiles.txt \
+--fastGWA-lmm \
+--grm-sparse GRM/ukb_imp.HM3.EUR.v4.sp \
+--pheno EA.pheno \
+--qcovar phenotypes/age.25PCs.qcov \
+--covar phenotypes/sex.array.cov \
+--est-vg HE \
+--threads 10 \
+--out ukb.GWAS.EA.25PCs.unrelatedtoexcluded.HRC &
+
+# sample size= 388196
+
+
+
+R
+library(qqman)
+library(data.table)
+gwas <- read.table("ukb.GWAS.EA.25PCs.unrelatedtoexcluded.HRC.fastGWA",header=T)
+colnames(gwas)
+setnames(gwas, "POS", "BP")
+gwas <- gwas[gwas$P > 0,]
+
+png("manhattan.EA.25PCs.unrelatedtoexcluded.HRC.png",
+width = 10,
+height = 6,
+units = 'in',
+res = 600)
+manhattan(gwas,
+main = "UKB - EA",
+col = c("slategray3", "slategray4"),
+suggestiveline=-log10(5e-8),
+genomewideline=-log10(1e-8))
+dev.off()
+# doesnt work need definite ylim
+
+# QQplot 
+png("qq.EA.25PCs.unrelatedtoexcluded.HRC.png",
+width = 6,
+height = 6,
+units = 'in',
+res = 600)
+qq(gwas$P)
+dev.off()
+
+q()
+
+# Analyze inflation and snp based heritability 
+
+#module load eb
+#module load Miniconda2
+#source activate ldsc ?
+
+software/ldsc/munge_sumstats.py \
+--sumstats ukb.GWAS.EA.25PCs.unrelatedtoexcluded.HRC.fastGWA \
+--N 388196 \
+--merge-alleles software/ldsc/w_hm3.snplist \
+--out ukb.GWAS.EA.25PCs.unrelatedtoexcluded.HRC.LDSC &
+
+software/ldsc/ldsc.py \
+--h2 ukb.GWAS.EA.25PCs.unrelatedtoexcluded.HRC.LDSC.sumstats.gz \
+--ref-ld-chr software/ldsc/eur_w_ld_chr/ \
+--w-ld-chr software/ldsc/eur_w_ld_chr/ \
+--out ukb.GWAS.EA.25PCs.unrelatedtoexcluded.HRC.LDSC.h2
+Total Observed scale h2: 0.1592 (0.0047)
+Lambda GC: 2.0217
+Mean Chi^2: 2.385
+Intercept: 1.1564 (0.0127)
+Ratio: 0.1129 (0.0091)
+
+
