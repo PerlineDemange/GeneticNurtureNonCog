@@ -25,10 +25,11 @@ echo -e "SNP Chr BP A1 A2 AF1 N P BETA SE" > header
 sed -i 1d EA3_excl_23andMe_NTR_UKB.meta
 cat header EA3_excl_23andMe_NTR_UKB.meta > EA3_excl_23andMe_NTR_UKB.meta.cl
 
+#### HM3
 ### UKB
 ## Sample Size 
 388196
-number of snps: 1246532
+number of snps: 1246532 10616041
 ## Format sumstats EA UKB excluding holdouts fastgwa in HMC
 CHR     SNP     POS     A1      A2      N       AF1     BETA    SE      P
 
@@ -103,5 +104,80 @@ Intercept: 1.223 (0.0223)
 Ratio: 0.1081 (0.0108)
 
 
+#### HRC
+### UKB
+## Sample Size 
+388196
+number of snps: 10616041
+## Format sumstats EA UKB excluding holdouts fastgwa in HMC
+CHR     SNP     POS     A1      A2      N       AF1     BETA    SE      P
+
+
+
+# check genetic correlation
+/home/vubiopsy/GWAS/resources/software/ldsc/munge_sumstats.py \
+--sumstats EA3_excl_23andMe_NTR_UKB.meta.cl \
+--snp SNP \
+--a1 A1 \
+--a2 A2 \
+--p P \
+--frq AF1 \
+--N 318916 \
+--merge-alleles /home/vubiopsy/GWAS/resources/LDScores/w_hm3.snplist \
+--out EA3_excl_23andMe_NTR_UKB.meta.cl.LDSC 
+
+/home/vubiopsy/GWAS/resources/software/ldsc/munge_sumstats.py \
+--sumstats ukb.GWAS.EA.25PCs.unrelatedtoexcluded.fastGWA \
+--snp SNP \
+--a1 A1 \
+--a2 A2 \
+--p P \
+--frq AF1 \
+--N 388196 \
+--merge-alleles /home/vubiopsy/GWAS/resources/LDScores/w_hm3.snplist \
+--out ukb.GWAS.EA.25PCs.unrelatedtoexcluded.LDSC
+
+/home/vubiopsy/GWAS/resources/software/ldsc/ldsc.py \
+--rg ../../EA/ukb.GWAS.EA.25PCs.unrelatedtoexcluded.HRC.LDSC.sumstats.gz,EA3_excl_23andMe_NTR_UKB.meta.cl.LDSC.sumstats.gz \
+--ref-ld-chr /home/pdemange/Referencefiles/eur_w_ld_chr/ \
+--w-ld-chr /home/pdemange/Referencefiles/eur_w_ld_chr/ \
+--out rg_EA_Aysu_UKBHRCwoholdout
+
+
+Genetic Correlation
+-------------------
+Genetic Correlation: 0.9655 (0.0136)
+Z-score: 71.1767
+P: 0.
+
+
+
+### RUN the meta-analysis using METAL 
+
+module load metal 
+metal < metal_EA_HRC_runfile
+
+number of snps: 5158224
+
+sample size max: 388196 + 318916 = 707112
+
+# Check if genomic control needs to be done 
+/home/vubiopsy/GWAS/resources/software/ldsc/munge_sumstats.py \
+--sumstats meta_EA_0203201.txt \
+--N 707112 \
+--merge-alleles /home/vubiopsy/GWAS/resources/LDScores/w_hm3.snplist \
+--out meta_EA_0203201.txt.LDSC &
+
+/home/vubiopsy/GWAS/resources/software/ldsc/ldsc.py \
+--h2 meta_EA_0203201.txt.LDSC.sumstats.gz \
+--ref-ld-chr /home/vubiopsy/GWAS/resources/LDScores/eur_w_ld_chr/ \
+--w-ld-chr /home/vubiopsy/GWAS/resources/LDScores/eur_w_ld_chr/ \
+--out meta_EA_0203201.txt.LDSC.h2
+
+Total Observed scale h2: 0.1204 (0.0033)
+Lambda GC: 2.4421
+Mean Chi^2: 3.0625
+Intercept: 1.2225 (0.0223)
+Ratio: 0.1079 (0.0108)
 
 
