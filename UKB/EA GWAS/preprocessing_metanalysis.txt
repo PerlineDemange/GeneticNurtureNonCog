@@ -180,4 +180,22 @@ Mean Chi^2: 3.0625
 Intercept: 1.2225 (0.0223)
 Ratio: 0.1079 (0.0108)
 
+# Get Beta and SE
+R 
+library(data.table)
+data <- fread('meta_EA_0203201.txt', header=T)
+setnames(data, "P-value", "P")
 
+data$Beta <- data$Zscore / sqrt(2*data$P*(1 - data$P)*(data$Weight+ data$Zscore*data$Zscore))
+data$SE <- 1/sqrt(2*data$P*(1 - data$P)*(data$Weight+ data$Zscore*data$Zscore))
+
+# this method introduce Na/Inf because some zscore are zero (with pvqlue =1) 
+# do we care? 
+
+data$SEinflated <- data$SE*sqrt(1.2225)
+data$Zinflated <- data$Beta/data$SEinflated
+data$Pinflated <-2*pnorm(-abs(data$Zinflated))
+
+write.table(data, file='meta_EA_0203201_inflated.txt', row.names=F)
+
+# Check number of significant snps and lead snps
