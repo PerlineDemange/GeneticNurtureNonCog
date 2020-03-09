@@ -100,3 +100,86 @@ Lambda GC: 1.6831
 Mean Chi^2: 1.9424
 Intercept: 1.0551 (0.0118)
 Ratio: 0.0585 (0.0125)
+
+
+### With HRC 
+### UKB
+## Sample Size 
+202815
+number of snps: 10616041
+
+# check genetic correlation
+/home/vubiopsy/GWAS/resources/software/ldsc/munge_sumstats.py \
+--sumstats cogent.hrc.meta.chr.bp.rsid.assoc.full.cl \
+--snp SNP \
+--a1 A1 \
+--a2 A2 \
+--p P \
+--frq AF1 \
+--N 35298 \
+--merge-alleles /home/vubiopsy/GWAS/resources/LDScores/w_hm3.snplist \
+--out cogent.hrc.meta.chr.bp.rsid.assoc.full.cl.LDSC.
+
+/home/vubiopsy/GWAS/resources/software/ldsc/munge_sumstats.py \
+--sumstats ../../CP/ukb.GWAS.CP.25PCs.unrelatedtoexcluded.HRC.fastGWA \
+--snp SNP \
+--a1 A1 \
+--a2 A2 \
+--p P \
+--frq AF1 \
+--N 202815 \
+--merge-alleles /home/vubiopsy/GWAS/resources/LDScores/w_hm3.snplist \
+--out ukb.GWAS.CP.25PCs.unrelatedtoexcluded.HRC.LDSC
+
+/home/vubiopsy/GWAS/resources/software/ldsc/ldsc.py \
+--rg ukb.GWAS.CP.25PCs.unrelatedtoexcluded.HRC.LDSC.sumstats.gz,cogent.hrc.meta.chr.bp.rsid.assoc.full.cl.LDSC..sumstats.gz \
+--ref-ld-chr /home/vubiopsy/GWAS/resources/LDScores/eur_w_ld_chr/ \
+--w-ld-chr /home/vubiopsy/GWAS/resources/LDScores/eur_w_ld_chr/ \
+--out rg_CP_Cogent_UKBwoholdout_HRC
+
+
+Genetic Correlation
+-------------------
+Genetic Correlation: 0.8973 (0.0472)
+Z-score: 18.9916
+P: 2.0028e-80
+
+
+
+### RUN the meta-analysis using METAL 
+
+module load metal 
+mv metal_CP_HRC_run_file.txt metal_CP_HRC_run_file
+metal < metal_CP_HRC_run_file
+
+number of snps: 10575690
+
+sample size max: 202815 + 35298 = 238113
+
+# Check if genomic control needs to be done 
+sed -i 's/P-value/P/g' meta_CP_0903201.txt
+
+/home/vubiopsy/GWAS/resources/software/ldsc/munge_sumstats.py \
+--sumstats meta_CP_0903201.txt \
+--N 238113 \
+--merge-alleles /home/vubiopsy/GWAS/resources/LDScores/w_hm3.snplist \
+--out meta_CP_0903201.txt.LDSC &
+
+/home/vubiopsy/GWAS/resources/software/ldsc/ldsc.py \
+--h2 meta_CP_0903201.txt.LDSC.sumstats.gz \
+--ref-ld-chr /home/vubiopsy/GWAS/resources/LDScores/eur_w_ld_chr/ \
+--w-ld-chr /home/vubiopsy/GWAS/resources/LDScores/eur_w_ld_chr/ \
+--out meta_CP_0903201.txt.LDSC.h2
+
+Total Observed scale h2: 0.1858 (0.0064)
+Lambda GC: 1.6831
+Mean Chi^2: 1.9424
+Intercept: 1.0551 (0.0118)
+Ratio: 0.0585 (0.0125)
+
+mv metal_CP_run_file.txt metal_CP_run_file
+
+module load metal 
+metal < metal_CP_run_file
+
+number of snps: 1 246 531
