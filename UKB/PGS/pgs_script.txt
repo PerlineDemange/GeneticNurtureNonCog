@@ -17,7 +17,7 @@ awk '!seen[$1]++' nuclear_id > nuclear_id_unique #51853, good amount  #51852 ind
 
 #this dataset can be used for making PRS now.
 
-#### Get subset data of the binary genotype data with relevant individuals 
+#### Get subset data of the binary genotype data with relevant individuals #not necessary if keep function worksin prsic
 #######################
 # using plink 
 # change data to be fid idd 
@@ -45,21 +45,22 @@ paste nuclear_id_unique nuclear_id_unique > nuclear_id_unique2
 	#--pheno-file /mnt/lustre/groups/ukbiobank/usr/Rosa/adopt_edu/adopted_variables_clean.pheno \
 	# --perm 10000 \
 
-paste nuclear_id_unique2 nuclear_id_unique > nuclear_id_unique3
+paste nuclear_id_unique2 nuclear_id_unique > nuclear_id_unique3 #3times ids
 
 module load R/3.5.0
 
-/home/pdemange/PRSice/PRSice_linux \
---base /home/pdemange/UKB/Meta-analysis/EA/meta_EA_withBetaSE2502.txt \ 
---beta T \
+/home/pdemange/PRSice/PRSice.R \
+--prsice /home/pdemange/PRSice/ \
+--base /home/pdemange/UKB/Meta-analysis/EA/NonCog_GWAS_110320.txt \ 
+--beta T\
 --stat Beta \
 --target /project/ukbaumc/UKBGWAS/genotypes/HM3/ukb_imp.HM3.EUR.v3 \ 
---keep nuclear_id_unique2 \
+--keep nuclear_id_unique3 \
 --bar-levels 1 \
 --fastscore T \
 --no-full \
 --thread 1 \
---out output/EA_PGS 
+--out output/NonCog_PGS 
 
 
 #--ld /home/pdemange/1000Genomes.201106.LDpred.ALL.1 \

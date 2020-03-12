@@ -2,4 +2,4 @@
 
 
 
-
+10/03 I forgot to push the changes made on the NTR computer, missing updates for EA GWAS with genomic control and gwas by subtraction. 
