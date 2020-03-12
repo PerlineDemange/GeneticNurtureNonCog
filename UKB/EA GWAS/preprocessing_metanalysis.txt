@@ -104,6 +104,51 @@ Intercept: 1.223 (0.0223)
 Ratio: 0.1081 (0.0108)
 
 
+# Get Beta and SE
+R 
+library(data.table)
+data <- fread('meta_EA_2102201.txt', header=T)
+setnames(data, "P-value", "P")
+
+data$Beta <- data$Zscore / sqrt(2*data$P*(1 - data$P)*(data$Weight+ data$Zscore*data$Zscore))
+data$SE <- 1/sqrt(2*data$P*(1 - data$P)*(data$Weight+ data$Zscore*data$Zscore))
+
+# this method introduce Na/Inf because some zscore are zero (with pvqlue =1) 
+# do we care? 
+
+data$SEinflated <- data$SE*sqrt(1.223)
+data$Zinflated <- data$Beta/data$SEinflated
+data$Pinflated <-2*pnorm(-abs(data$Zinflated))
+
+write.table(data, file='meta_EA_2102201_inflated.txt', row.names=F)
+
+new <- data[,c(1:8,12, 14:16)]
+setnames(new, "SEinflated", "SE")
+setnames(new, "Zinflated", "Z")
+setnames(new, "Pinflated", "P")
+
+write.table(new, file='meta_EA_2102201_inflated_cl.txt', row.names=F)
+# check h2 now 
+/home/vubiopsy/GWAS/resources/software/ldsc/munge_sumstats.py \
+--sumstats meta_EA_2102201_inflated_cl.txt \
+--N 707112 \
+--ignore Beta \
+--merge-alleles /home/vubiopsy/GWAS/resources/LDScores/w_hm3.snplist \
+--out meta_EA_2102201_inflated.txt.LDSC &
+
+/home/vubiopsy/GWAS/resources/software/ldsc/ldsc.py \
+--h2 meta_EA_2102201_inflated.txt.LDSC.sumstats.gz \
+--ref-ld-chr /home/vubiopsy/GWAS/resources/LDScores/eur_w_ld_chr/ \
+--w-ld-chr /home/vubiopsy/GWAS/resources/LDScores/eur_w_ld_chr/ \
+--out meta_EA_2102201_inflated.txt.LDSC.h2
+
+Total Observed scale h2: 0.1006 (0.0027)
+Lambda GC: 1.9965
+Mean Chi^2: 2.5044
+Intercept: 0.9783 (0.0187)
+
+awk '{$9=""; print $0}' meta_EA_2102201_inflated_cl.txt > meta_EA_2102201_infl_cl.txt #remove beta so only one effect column
+
 #### HRC
 ### UKB
 ## Sample Size 

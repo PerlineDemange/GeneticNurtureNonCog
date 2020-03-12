@@ -1,0 +1,55 @@
+##################################################
+## Project: NonCog indirect geneticc effects 2020
+## Script purpose: Run the gwas a subtraction
+## Date: Feb 2020
+## Author: Perline Demange 
+##################################################
+
+module load pre2019
+module load R/3.4.3 
+
+R
+require(GenomicSEM)
+
+## Munge summary statistics 
+munge("../Meta-analysis/EA/meta_EA_2102201_infl_cl.txt", "../../Referencefiles/w_hm3.noMHC.snplist",trait.names="EA", 707112, info.filter = 0.9, maf.filter = 0.01)
+munge("../Meta-analysis/CP/meta_CP_2402201.txt", "../../Referencefiles/w_hm3.noMHC.snplist",trait.names="CP", 238113, info.filter = 0.9, maf.filter = 0.01)
+
+# run ldsc output 
+# run multivariate ldsc
+traits <- c("CP.sumstats.gz","EA.sumstats.gz")
+sample.prev <- c(NA,NA)
+population.prev <- c(NA,NA)
+ld<-"../../Referencefiles/eur_w_ld_chr/"
+wld <- "../../Referencefiles/eur_w_ld_chr/"
+trait.names<-c("CP", "EA")
+LDSCoutput <- ldsc(traits, sample.prev, population.prev, ld, wld, trait.names)
+save(LDSCoutput, file="LDSCoutputCogNonCog.RData")
+
+# Prepare sumstats 
+files = c("../Meta-analysis/CP/meta_CP_2402201.txt", "../Meta-analysis/EA/meta_EA_2102201_infl_cl.txt")
+ref = "../../Referencefiles/reference.1000G.maf.0.005.txt.gz"
+trait.names = c("CP","EA")
+se.logit = c(F,F)
+info.filter = 0.6
+maf.filter = 0.01
+p_sumstats<-sumstats(files, ref, trait.names, se.logit, info.filter, maf.filter, OLS=c(T,T),linprob=NULL, prop=NULL, N=c(238113,707112))
+save(p_sumstats, file="Sumstats.RData")
+
+# Model without SNP effects
+
+model<-'C=~NA*EA + start(0.4)*CP
+NC=~NA*EA
+NC~~1*NC
+C~~1*C
+C~~0*NC
+CP ~~ 0*EA
+CP~~0*CP
+EA~~0*EA'
+
+output<-usermodel(LDSCoutput,estimation="DWLS",model=model)
+output
+save(output, file="Modeloutput_woSNP.Rdata" )
+
+q()
+sbatch run_gbs.sh
