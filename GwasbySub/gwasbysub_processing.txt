@@ -1,0 +1,265 @@
+# this file eventually be merged with other file on gbs
+screen -x ukb 
+
+module load pre2019
+module load R/3.4.3
+
+R 
+
+#join output of Gwas-by-subtraction together 
+
+cognitive1m <- readRDS(file = "cognitive1m.Rda")
+cognitive2m <- readRDS(file = "cognitive2m.Rda")
+cognitive3m <- readRDS(file = "cognitive3m.Rda")
+cognitive4m <- readRDS(file = "cognitive4m.Rda")
+cognitive5m <- readRDS(file = "cognitive5m.Rda")
+cognitive6m <- readRDS(file = "cognitive6m.Rda")
+cognitive7m <- readRDS(file = "cognitive7m.Rda")
+cognitive8m <- readRDS(file = "cognitive8m.Rda")
+cognitive9m <- readRDS(file = "cognitive9m.Rda")
+cognitive10m <- readRDS(file = "cognitive10m.Rda")
+cognitive107m <- readRDS(file = "cognitive107m.Rda")
+noncog1m <- readRDS(file = "noncog1m.Rda")
+noncog2m <- readRDS(file = "noncog2m.Rda")
+noncog3m <- readRDS(file = "noncog3m.Rda")
+noncog4m <- readRDS(file = "noncog4m.Rda")
+noncog5m <- readRDS(file = "noncog5m.Rda")
+noncog6m <- readRDS(file = "noncog6m.Rda")
+noncog7m <- readRDS(file = "noncog7m.Rda")
+noncog8m <- readRDS(file = "noncog8m.Rda")
+noncog9m <- readRDS(file = "noncog9m.Rda")
+noncog10m <- readRDS(file = "noncog10m.Rda")
+noncog107m <- readRDS(file = "noncog107m.Rda")
+
+
+# merging the files together # careful can not use this formula for other variable which name is contained in the previous variable...
+mats <- grep(x = ls(pos = 1), pattern = "cognitive", value = TRUE)
+cognitivetot <- do.call(rbind, mget(mats))
+mats2 <- grep(x = ls(pos = 1), pattern = "noncog", value = TRUE)
+noncogtot <- do.call(rbind, mget(mats2))
+
+head(cognitivetot)
+nrow(cognitivetot) # 1071804
+head(noncogtot)
+nrow(noncogtot) #1071804
+
+#remove the files so it goes faster
+rm(cognitive1m)
+rm(cognitive2m)
+rm(cognitive3m)
+rm(cognitive4m)
+rm(cognitive5m)
+rm(cognitive6m)
+rm(cognitive7m)
+rm(cognitive8m)
+rm(cognitive9m)
+rm(cognitive10m)
+rm(cognitive107m)
+rm(noncog1m)
+rm(noncog2m)
+rm(noncog3m)
+rm(noncog4m)
+rm(noncog5m)
+rm(noncog6m)
+rm(noncog7m)
+rm(noncog8m)
+rm(noncog9m)
+rm(noncog10m)
+rm(noncog107m)
+
+### Quality checks ###
+# Removing Snps whose SE did not converge 
+cognitivecor <- cognitivetot[complete.cases(as.numeric(cognitivetot$SE)), ]  #remove the SNPs that do not converge, SE can not be computed
+noncogncor <- noncogtot[complete.cases(as.numeric(noncogtot$SE)), ]
+nrow(cognitivecor) #1071804
+nrow(noncogncor) #1071804
+# Number of SNPs that did not compute? there is no SNPS for whicht the SE did not compute
+
+
+cognitiveneg = cognitivetot[cognitivetot$cog_CPest < 0, ] #0
+cognitiveneg2 = cognitivetot[cognitivetot$cog_EAest < 0, ] #0
+cognitiveneg3 = cognitivetot[cognitivetot$non_EAest < 0, ] #0
+# Number of SNPs with negative estimation? There is no SNPS for which the estimations of the loadings are negative 
+
+
+
+### Save data ###
+
+save(cognitivetot, file = "Cog_GWAS_110320.RData")
+save(noncogtot, file = "NonCog_GWAS_110320.RData")
+
+# Shorten the data, removes unnecessary columns, rename columns
+cognitive2 <- cognitivetot[, c("SNP", "CHR", "BP", "A1", "A2", "MAF", "est", "SE", "Z_Estimate", "Pval_Estimate")]
+noncog2 <- noncogtot[, c("SNP", "CHR", "BP", "A1", "A2", "MAF", "est", "SE", "Z_Estimate", "Pval_Estimate")]
+names(cognitive2)[names(cognitive2) == "est"] <- "Beta"
+names(cognitive2)[names(cognitive2) == "Z_Estimate"] <- "Z"
+names(cognitive2)[names(cognitive2) == "Pval_Estimate"] <- "P"
+names(noncog2)[names(noncog2) == "est"] <- "Beta"
+names(noncog2)[names(noncog2) == "Z_Estimate"] <- "Z"
+names(noncog2)[names(noncog2) == "Pval_Estimate"] <- "P"
+
+write.table(cognitive2, file = "Cog_GWAS_110320.txt", sep = "\t", quote = F, row.names = F)
+write.table(noncog2, file = "NonCog_GWAS_110320.txt", sep = "\t", quote = F, row.names = F)
+
+q()
+
+#somehow the qqman package is not avaialble on the preivous vrsion of R 
+module load R/3.2.1
+R
+
+library(data.table)
+noncog <- fread('NonCog_GWAS_110320.txt', header=T)
+ 
+library(qqman)
+png("manhattan.NonCog.110320.png",
+width = 10,
+height = 6,
+units = 'in',
+res = 600)
+manhattan(noncog,
+main = "NonCog",
+col = c("slategray3", "slategray4"),
+suggestiveline=-log10(5e-8),
+genomewideline=-log10(1e-8))
+dev.off()
+
+png("qq.NonCog.110320.png",
+width = 6,
+height = 6,
+units = 'in',
+res = 600)
+qq(noncog$P)
+dev.off()
+
+cog <- fread('Cog_GWAS_110320.txt', header=T)
+png("manhattan.Cog.110320.png",
+width = 10,
+height = 6,
+units = 'in',
+res = 600)
+manhattan(cog,
+main = "Cog",
+col = c("slategray3", "slategray4"),
+suggestiveline=-log10(5e-8),
+genomewideline=-log10(1e-8))
+dev.off()
+
+png("qq.Cog.110320.png",
+width = 6,
+height = 6,
+units = 'in',
+res = 600)
+qq(cog$P)
+dev.off()
+
+q()
+
+### Get number of significant hits ###
+## NonCog
+
+# get identifier #need to print another column with the chr:pos in order to be able to compare it with the 1000Genomes file
+awk '{print $2":"$3}' NonCog_GWAS_110320.txt > identifier.txt
+# paste identifier to gwas sumstats
+paste identifier.txt NonCog_GWAS_110320.txt > tmp.txt
+
+# change the headers of gwas sumstats
+sed -i 's/SNP/RS/g' tmp.txt
+sed -i 's/CHR:BP/SNP/g' tmp.txt
+
+# clump the GWAS data with the reference file for LD (here 1000Genomes, in the higher directory)
+/home/pdemange/CogNonCog/plink/plink  --bfile /home/pdemange/1000Genomes.201106.LDpred.ALL.1 --clump tmp.txt --clump-kb 250 --clump-r2 0.1 --out CLUMP_Non_Cognitive
+
+# get only the rsid and pvalue of the independent SNPS
+awk '{print $3, $5}' CLUMP_Non_Cognitive.clumped > NonCog_independent_signals.txt
+
+# create a file with only the significant independent SNPS
+awk '{if($2< 0.00000005) print $0}' NonCog_independent_signals.txt > NonCog_sig_independent_signals.txt
+
+# get infos about the file, the first number is the number of lines and therefore the number of significant independent signals
+wc NonCog_sig_independent_signals.txt
+# carefull there are two empty rows at the end of the create dataframe !
+# 17 hits 
+
+## Cog
+
+awk '{print $2":"$3}' Cog_GWAS_110320.txt > identifier.txt
+paste identifier.txt Cog_GWAS_110320.txt > tmp.txt
+sed -i 's/SNP/RS/g' tmp.txt
+sed -i 's/CHR:BP/SNP/g' tmp.txt
+/home/pdemange/CogNonCog/plink/plink  --bfile /home/pdemange/1000Genomes.201106.LDpred.ALL.1 --clump tmp.txt --clump-kb 250 --clump-r2 0.1 --out CLUMP_Cognitive
+awk '{print $3, $5}' CLUMP_Cognitive.clumped > Cog_independent_signals.txt
+awk '{if($2< 0.00000005) print $0}' Cog_independent_signals.txt > Cog_sig_independent_signals.txt 
+wc Cog_sig_independent_signals.txt
+# 130 hits 
+
+### Calculate effective sample size ###
+
+R
+library(data.table)
+nclatentpath <- 0.2342023 # path between the latent variable noncog and EA
+clatentpath <-  0.4371856 # path between the latent variable cog and CP
+#path between cp and ea 0.2289463
+
+noncog <- fread('NonCog_GWAS_110320.txt', header=T)
+cog <- fread('Cog_GWAS_110320.txt', header=T)
+
+noncog$Neff <- ((noncog$Z/(noncog$Beta*nclatentpath))^2)/(2*noncog$MAF*(1-noncog$MAF)) 
+noncog_maf_thresh <- noncog[noncog$MAF >= .10 & noncog$MAF <= .40,]
+noncog_maf_thresh$N <- mean(noncog_maf_thresh$Neff)
+noncog_maf_thresh$N <- floor(noncog_maf_thresh$N)
+summary(noncog_maf_thresh$N)
+# 458211
+
+cog$Neff <- ((cog$Z/(cog$Beta*clatentpath))^2)/(2*cog$MAF*(1-cog$MAF)) 
+cog_maf_thresh <- cog[cog$MAF >= .10 & cog$MAF <= .40,]
+cog_maf_thresh$N <- mean(cog_maf_thresh$Neff)
+cog_maf_thresh$N <- floor(cog_maf_thresh$N)
+summary(cog_maf_thresh$N)
+#223819
+
+q()
+
+#### Get mean chisq and SNP heritability
+module load eb
+module load Miniconda2
+source activate ldsc
+
+/home/vubiopsy/GWAS/resources/software/ldsc/munge_sumstats.py \
+--sumstats NonCog_GWAS_110320.txt \
+--N 458211 \
+--ignore Beta \
+--merge-alleles /home/vubiopsy/GWAS/resources/LDScores/w_hm3.snplist \
+--out NonCog_GWAS_110320.txt.LDSC &
+
+/home/vubiopsy/GWAS/resources/software/ldsc/ldsc.py \
+--h2 NonCog_GWAS_110320.txt.LDSC.sumstats.gz \
+--ref-ld-chr /home/vubiopsy/GWAS/resources/LDScores/eur_w_ld_chr/ \
+--w-ld-chr /home/vubiopsy/GWAS/resources/LDScores/eur_w_ld_chr/ \
+--out NonCog_GWAS_110320.txt.LDSC.h2
+
+Total Observed scale h2: 0.054 (0.0024)
+Lambda GC: 1.3546
+Mean Chi^2: 1.4445
+Intercept: 0.9241 (0.0126)
+Ratio < 0 (usually indicates GC correction).
+
+/home/vubiopsy/GWAS/resources/software/ldsc/munge_sumstats.py \
+--sumstats Cog_GWAS_110320.txt \
+--N 223819 \
+--ignore Beta \
+--merge-alleles /home/vubiopsy/GWAS/resources/LDScores/w_hm3.snplist \
+--out Cog_GWAS_110320.txt.LDSC &
+
+/home/vubiopsy/GWAS/resources/software/ldsc/ldsc.py \
+--h2 Cog_GWAS_110320.txt.LDSC.sumstats.gz \
+--ref-ld-chr /home/vubiopsy/GWAS/resources/LDScores/eur_w_ld_chr/ \
+--w-ld-chr /home/vubiopsy/GWAS/resources/LDScores/eur_w_ld_chr/ \
+--out Cog_GWAS_110320.txt.LDSC.h2
+
+Total Observed scale h2: 0.184 (0.0068)
+Lambda GC: 1.6372
+Mean Chi^2: 1.8852
+Intercept: 0.9952 (0.0151)
+Ratio < 0 (usually indicates GC correction).
+
+#### Do genetic correlation with Cog and NonCog from Demange et al. excluding 23andMe 
