@@ -1,9 +1,11 @@
-#rosa cheesman
-#prs analysis of adoptee/nonadoptee comparison and sib comparison in UKBiobank
-#24.02.20
+# Rosa Cheesman
+# PRs analysis of sib comparison in UKBiobank
+# 24.02.20
 
 #/////////////////////////////////////////////////////////////////////////#/////////////////////////////////////////////////////////////////////////#/////////////////////////////////////////////////////////////////////////
-#make sibling id
+####################
+# make sibling id
+####################
 #take dataset with just sibs
 #this greps loads of different files each containing occurrences of each ID from Sib_id_uniques:
 awk '{print $1,$2}' Sib > Sib_ids
@@ -46,8 +48,9 @@ awk '{print $2}' sibs_famid3 > fams #this will be the no. of families
 awk -F '\t' '{print $1}' fams | sort | uniq -c | sort -nr > no_of_fams_and_fids #do this to know what max.no of sibs is
 
 
-
-#make file with FID
+#########################
+# make file with FID
+########################
 
 R
 library(data.table)
