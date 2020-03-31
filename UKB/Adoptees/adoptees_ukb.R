@@ -1,129 +1,127 @@
+# Rosa Cheesman & Perline Demange 
+# PRS analysis of adoptees and non-adopted in UKBiobank
+# 31-03-2020
 
-#/////////////////////////////////////////////////////////////////////////#/////////////////////////////////////////////////////////////////////////#/////////////////////////////////////////////////////////////////////////
-#get phenotype for adoptees, nonadoptees, siblings
-module add bioinformatics/R/3.3.3
+###########################################
+# Make file with FID, polygenic scores and covariates 
+###########################################
+module load pre2019
+module load R/3.4.3
+
 R
 library(data.table)
 library(psych)
 
-a <- fread("Allvars.txt",h=T, data.table=F)
-#describe(a)
+## data of adoptees 
+######################
 
-a[a==-818] <- NA
-a[a==-121] <- NA
-# a[a==-1] <- NA #dnno
-# a[a==-3] <- NA #pref no ans
-# a[a==-7] <- NA #none of above
+adop<- fread("../../EA/adoptees.csv", data.table=F, header=T) 
+adop <- adop[,c(1,3)]
+colnames(adop)<-c("ID1","EA")
 
-x<-a$Qualifications.0.0
-a$Edu<-ifelse(is.na(x), NA,
-              ifelse(!is.na(x) & x == -7, 7,
-                     ifelse(!is.na(x) & x == 4 | x == 3, 10,
-                            ifelse(!is.na(x) & x == 2, 13,
-                                   ifelse(!is.na(x) & x == 6, 15,
-                                          ifelse(!is.na(x) & x ==5, 19,
-                                                 ifelse(!is.na(x) & x ==1, 20, NA)))))))
-#      7     10     13     15     19     20 
-# 85291 132110  55331  25810  32734 161198 
+polyNC <- fread('/home/pdemange/UKB/PGS/NonCog/scores/NONCOG_LDpred-inf_scores.profile', data.table=F, header=T) 
+polyNC <- polyNC[,c(2,6)]
+colnames(polyNC) <- c('ID1', 'scoreNonCog')
+finaladop1 <- merge(adop, polyNC, by='ID1') 
+polyC <- fread('/home/pdemange/UKB/PGS/Cog/scores/COG_LDpred-inf_scores.profile', data.table=F, header=T)
+polyC <- polyC[,c(2,6)]
+colnames(polyC) <- c('ID1', 'scoreCog')
+finaladop <- merge(finaladop1, polyC, by='ID1') 
 
-#scale the phnenotype
-dat3$PRS_std=scale(dat3$PRS)
+# score were based on wrong effect alelles so sign need to be change
+finaladop$scoreNonCogrev <- -1*finaladop$scoreNonCog
+finaladop$scoreCogrev <- -1*finaladop$scoreCog
 
-#/////////////////////////////////////////////////////////////////////////#/////////////////////////////////////////////////////////////////////////#/////////////////////////////////////////////////////////////////////////
-#merge phenotype, PRS, and covariates, and family role for adoptees, nonadoptees, siblings
+#scale variables 
+finaladop[,c("EA_sc","scoreNonCog_sc", "scoreCog_sc")]<-apply(finaladop[,c("EA","scoreNonCogrev", "scoreCogrev")],
+                                                             2,
+                                                             scale)
+# add covariates
+sex <- read.table("/project/ukbaumc/UKBGWAS/phenotypes/sex.array.cov") 
+colnames(sex) <- c("ID1", "IID", "sex", "array")
+
+age <- read.table("/project/ukbaumc/UKBGWAS/phenotypes/age.25PCs.qcov") 
+colnames(age) <- c("ID1", "IID", "PC1", "PC2", "PC3", "PC4", "PC5", "PC6", "PC7", "PC8", "PC9", "PC10", "PC11", "PC12", "PC13",
+                   "PC14", "PC15", "PC16", "PC17", "PC18", "PC19", "PC20", "PC21", "PC22", "PC23", "PC24", "PC25", "Age")
+
+finaladop <- merge(finaladop, sex, by='ID1')
+finaladop <- merge(finaladop, age, by=c("ID1", "IID")) #6407
+
+## data of non-adopted controls
+##################################
+
+control <- fread("../../EA/nonadopted_6.5k.csv", data.table=F, header=T) 
+control <- control[,c(1,3)]
+colnames(control)<-c("ID1","EA")
+
+finalcontrol <- merge(control, polyNC, by='ID1') 
+finalcontrol <- merge(finalcontrol, polyC, by='ID1') 
+
+finalcontrol$scoreNonCogrev <- -1*finalcontrol$scoreNonCog
+finalcontrol$scoreCogrev <- -1*finalcontrol$scoreCog
+
+finalcontrol[,c("EA_sc","scoreNonCog_sc", "scoreCog_sc")]<-apply(finalcontrol[,c("EA","scoreNonCogrev", "scoreCogrev")],
+                                                              2,
+                                                              scale)
+
+finalcontrol <- merge(finalcontrol, sex, by='ID1')
+finalcontrol <- merge(finalcontrol, age, by=c("ID1", "IID")) #6500
 
 
-#/////////////////////////////////////////////////////////////////////////#/////////////////////////////////////////////////////////////////////////#/////////////////////////////////////////////////////////////////////////
-#run PRS analyses:
-#/////////////////////////////////////////////////////////////////////////#/////////////////////////////////////////////////////////////////////////#/////////////////////////////////////////////////////////////////////////
-#subset to adoptees
-adopteds<-subset(dat3,Adopted==1)
-#scale the polygenic score within the subsample
-dat3$PRS_std=scale(dat3$PRS)
+####################
+## Run PGS analyses
+####################
 library(boot)
+
+# create function to be able to bootstrap
+# DO WE USE IT? NEED TO CHANGE?
 rsq <- function(formula, data, indices) {
   d <- data[indices,] # allows boot to select sample 
   fit <- lm(formula, data=d)
   return(summary(fit)$r.square)
 } 
+
+## For adoptees
+###############
+
+# Run simple lm 
+simple <- lm(EA_sc~scoreNonCog_sc + scoreCog_sc + sex + array + Age + sex*Age + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, data=finaladop)
+summary(simple)
+
 # bootstrapping with 1000 replications 
-results <- boot(data=adopteds, statistic=rsq, 
-                R=1000, formula=Edu~PRS_std)
+results <- boot(data=finaladop, statistic=rsq, 
+                R=1000, formula=EA_sc~scoreNonCog_sc + scoreCog_sc + sex + array + Age + sex*Age + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10)
+
 # view results
 results 
-#/////////////////////////////////////////////////////////////////////////#/////////////////////////////////////////////////////////////////////////#/////////////////////////////////////////////////////////////////////////
-#subset to nonadoptees
-nonadopteds<-subset(dat3,Adopted==0)
-#scale the polygenic score within the subsample
-dat3$PRS_std=scale(dat3$PRS)
-rsq <- function(formula, data, indices) {
-  d <- data[indices,] # allows boot to select sample 
-  fit <- lm(formula, data=d)
-  return(summary(fit)$r.square)
-} 
+
+## For Non-adoptees 
+###################
+
+# run simple model 
+simplecontrol <- lm(EA_sc~scoreNonCog_sc + scoreCog_sc + sex + array + Age + sex*Age + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, data=finalcontrol)
+summary(simplecontrol)
+
 # bootstrapping with 1000 replications 
-results <- boot(data=adopteds, statistic=rsq, 
+results <- boot(data=finalcontrol, statistic=rsq, 
                 R=1000, formula=Edu~PRS_std)
 results 
 
-#/////////////////////////////////////////////////////////////////////////#/////////////////////////////////////////////////////////////////////////#/////////////////////////////////////////////////////////////////////////
-#subset to siblings
-#create wide dataset grouping siblings by family
 
+## Comparison adoptees - non-adopted
+#####################################
+names(summary(simple))
 
+direct_NonCog <- summary(simple)$coefficients[2,1] #beta from adopted 
+direct_Cog <- summary(simple)$coefficients[3,1]
+total_NonCog <- summary(simplecontrol)$coefficients[2,1] #beta from non-adopted 
+total_Cog <- summary(simplecontrol)$coefficients[3,1] 
+indirect_NonCog <- total_NonCog - direct_NonCog #0.02133141
+indirect_Cog <- total_Cog - direct_Cog #0.07886815
+ratio_NonCog <- indirect_NonCog / direct_NonCog #0.1137116
+ratio_Cog <- indirect_Cog / direct_Cog #0.4330012
 
-
-
-
-#/////////////////////////////////////////////////////////////////////////#/////////////////////////////////////////////////////////////////////////#/////////////////////////////////////////////////////////////////////////
-##saskia sib comparison script:
-###nb this doesn't include covariates, they should be regressed out first...
-
-#################
-#functions written 
-#################
-#calculate intraclass correlations
-#i.e.  The ICC is the ratio of the between-family (i.e., random intercept) variance over the total variance 
-#and is an estimate of how much of the total variation in the outcome is accounted for by family
-ICCest <- function(model) {
-  icc <- sqrt(diag(getVarCov(model)))^2 / (sqrt(diag(getVarCov(model)))^2 + model$sigma^2 )
-  as.vector(icc)
-}
-
-#calculate total effect based on between- & within-family estimate and ICC
-totaleffect <-  function(fmodel,imodel){
-  coef(summary(fmodel))[2,1] * ICCest(imodel) + coef(summary(fmodel))[3,1]* (1- ICCest(imodel))
-}
-
-#################
-#Mixed model--- polygenic p factor predicting life experiences age 21 composite
-#################
-
-#create between-family variable
-#DZ_scaled$GPS_B <- (DZ_scaled$PC_gps + DZ_scaled$PC_gps2)/2
-
-#when there is more than one sibling in the family, the avg family GPS should reflect this..
-
-#see max no. of siblings in a single family e.g. 5
-# then sum over 5 columns, ignoring NAs.
-
-
-
-#create within-family variable
-DZ_scaled$GPS_W <- DZ_scaled$PC_gps  - DZ_scaled$GPS_B  
-
-#Mixed effects model
-#intercept model
-#GPS not incl. yet...
-m0 <- lme(exp1~1, random=~1|id_fam, method="ML", na.action=na.omit,data=DZ_scaled)
-ICCest(m0) #get ICC
-
-#include within and between family effect
-m1 <- lme(exp1~GPS_B+GPS_W, random=~1|id_fam, method="ML", na.action=na.omit,data=DZ_scaled)
-totaleffect(m1) #get total effect
-
-summary(m1)
-#/////////////////////////////////////////////////////////////////////////#/////////////////////////////////////////////////////////////////////////#/////////////////////////////////////////////////////////////////////////
-
-
-
+# Save data
+#####################
+write.table(finaladop, file="Data_scores_adop_UKB_20200310.csv", row.names=F, quote=F) 
+write.table(finalcontrol, file="Data_scores_nonadop_UKB_20200310.csv", row.names=F, quote=F) 
