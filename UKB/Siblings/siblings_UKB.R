@@ -1,13 +1,13 @@
-# Rosa Cheesman
-# PRs analysis of sib comparison in UKBiobank
-# 24.02.20
+# Rosa Cheesman & Perline Demange 
+# PRS analysis of sib comparison in UKBiobank
+# 24.02.20 - 30-03-2020
 
 #/////////////////////////////////////////////////////////////////////////#/////////////////////////////////////////////////////////////////////////#/////////////////////////////////////////////////////////////////////////
 ####################
-# make sibling id
+# Make sibling id
 ####################
-#take dataset with just sibs
-#this greps loads of different files each containing occurrences of each ID from Sib_id_uniques:
+# take dataset with just sibs
+# this greps loads of different files each containing occurrences of each ID from Sib_id_uniques:
 awk '{print $1,$2}' Sib > Sib_ids
 
 awk '{print $1}' Sib_ids > Sib1
@@ -48,51 +48,79 @@ awk '{print $2}' sibs_famid3 > fams #this will be the no. of families
 awk -F '\t' '{print $1}' fams | sort | uniq -c | sort -nr > no_of_fams_and_fids #do this to know what max.no of sibs is
 
 
-#########################
-# make file with FID
-########################
+###########################################
+# Make file with FID, polygenic scores and covariates 
+###########################################
+module load pre2019
+module load R/3.4.3
 
 R
 library(data.table)
 library(psych)
 
-b <- fread("rels/sibs_famid3",h=F, data.table=F, verbose=T) #41493
+b <- fread("../rels/sibs_famid3",h=F, data.table=F, verbose=T) #41498
 colnames(b)[1:2]<-c("ID1","FID")
 ##siblings
-c <- fread("../EA/siblings.csv", data.table=F, verbose=T, header=T) #39500
-pheno <- c
+pheno <- fread("../../EA/siblings.csv", data.table=F, verbose=T, header=T) #39500
 pheno <- pheno[,c(1,3)]
 colnames(pheno)<-c("ID1","EA")
 dat2<-merge(pheno, b ,by = "ID1") #39500
-poly <- fread('/project/ukbaumc/UKBGWAS/polygenic_scores/UKB.AMC.EA3_excl_23andMe_UK.HM3.EUR.SBLUP.10k.csv', data.table=F, header=T) 
-colnames(poly) <- c('ID1', 'scoreEA')
-finalsib <- merge(dat2, poly, by='ID1') #39500
+polyNC <- fread('/home/pdemange/UKB/PGS/NonCog/scores/NONCOG_LDpred-inf_scores.profile', data.table=F, header=T) 
+polyNC <- polyNC[,c(2,6)]
+colnames(polyNC) <- c('ID1', 'scoreNonCog')
+finalsib1 <- merge(dat2, polyNC, by='ID1') #39500
+polyC <- fread('/home/pdemange/UKB/PGS/Cog/scores/COG_LDpred-inf_scores.profile', data.table=F, header=T)
+polyC <- polyC[,c(2,6)]
+colnames(polyC) <- c('ID1', 'scoreCog')
+finalsib <- merge(finalsib1, polyC, by='ID1') #39500
+
+# add covariates
+
+sex <- read.table("/project/ukbaumc/UKBGWAS/phenotypes/sex.array.cov") 
+colnames(sex) <- c("ID1", "IID", "sex", "array")
+
+age <- read.table("/project/ukbaumc/UKBGWAS/phenotypes/age.25PCs.qcov") 
+colnames(age) <- c("ID1", "IID", "PC1", "PC2", "PC3", "PC4", "PC5", "PC6", "PC7", "PC8", "PC9", "PC10", "PC11", "PC12", "PC13",
+                   "PC14", "PC15", "PC16", "PC17", "PC18", "PC19", "PC20", "PC21", "PC22", "PC23", "PC24", "PC25", "Age")
+
+finalsib <- merge(finalsib, sex, by='ID1')
+finalsib <- merge(finalsib, age, by=c("ID1", "IID"))
 
 
+# Reverse scores because wrong effect allele was taken in LDPred
+finalsib$scoreNoNCogrev <- -1 * finalsib$scoreNonCog
+finalsib$scoreCogrev <- -1 * finalsib$scoreCog
 
-#scale variables
-finalsib[,c("EA_sc","scoreEA_sc")]<-apply(finalsib[,c("EA","scoreEA")],
+
+###########################################
+# Scale variables and average per family 
+###########################################
+
+# scale variables
+finalsib[,c("EA_sc","scoreNonCog_sc", "scoreCog_sc")]<-apply(finalsib[,c("EA","scoreNoNCogrev", "scoreCogrev")],
                           2,
                           scale)
 
 
 
-# create meanEA per fam 
-library(dplyr)
-mean<-group_by(finalsib,FID) %>% summarize(m=mean(scoreEA_sc))
-#19389 rows
-finalsibmeanprs<-merge(finalsib,mean,by="FID")
+
+############################################
+# Mixed model between-within family
+############################################
+
+# linear model
+global <- lm(EA_sc ~ scoreNonCog_sc + scoreCog_sc + sex + array + Age + sex*Age + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, data=finalsib)
+summary(global)
 
 
-
-
-#now startsib difference model
+# libraries
 library(nlme)
 library(boot)
 
+
+# ICC and total effect: functions written by Saskia Selzam, from Selzam et al. 2019
 #################
-#functions written 
-#################
+
 #calculate intraclass correlations
 #i.e.  The ICC is the ratio of the between-family (i.e., random intercept) variance over the total variance 
 #and is an estimate of how much of the total variation in the outcome is accounted for by family
@@ -106,42 +134,60 @@ totaleffect <-  function(fmodel,imodel){
   coef(summary(fmodel))[2,1] * ICCest(imodel) + coef(summary(fmodel))[3,1]* (1- ICCest(imodel))
 }
 
-#################
-#Mixed model--- polygenic p factor predicting life experiences age 21 composite
-#################
 
-#create between-family variable
-#DZ_scaled$GPS_B <- (DZ_scaled$PC_gps + DZ_scaled$PC_gps2)/2
-#when there is more than one sibling in the family, the avg family GPS should reflect this..
-#see qbove
+# Create between family estimates of PGS: average across family member
+######################################################################
 
-finalsibmeanprs$GPS_B  <- finalsibmeanprs$m  
-#create within-family variable
-finalsibmeanprs$GPS_W <- finalsibmeanprs$scoreEA_sc  - finalsibmeanprs$GPS_B  
+library(dplyr)
+meanNC<-group_by(finalsib,FID) %>% summarize(m=mean(scoreNonCog_sc))
+colnames(meanNC) <- c("FID", "GPS_B_NonCog")
+meanC<-group_by(finalsib,FID) %>% summarize(m=mean(scoreCog_sc)) #19389 rows
+colnames(meanC) <- c("FID", "GPS_B_Cog")
+finalsib<-merge(finalsib,meanNC,by="FID")
+finalsib<-merge(finalsib,meanC,by="FID")
 
-#Mixed effects model
-#intercept model
-#GPS not incl. yet...
-m0 <- lme(EA_sc~1, random=~1|FID, method="ML", na.action=na.omit,data=finalsibmeanprs)
-ICCest(m0) #get ICC
+# Create within-family variable
+################################
 
-#include within and between family effect
-m1 <- lme(EA_sc~GPS_B+GPS_W, random=~1|FID, method="ML", na.action=na.omit,data=finalsibmeanprs)
-totaleffect(m1) #get total effect
+finalsib$GPS_W_NonCog <- finalsib$scoreNonCog_sc  - finalsib$GPS_B_NonCog  
+finalsib$GPS_W_Cog <- finalsib$scoreCog_sc  - finalsib$GPS_B_Cog  
+
+# Mixed effects model
+######################
+
+# intercept model
+m0 <- lme(EA_sc~1, random=~1|FID, method="ML", na.action=na.omit,data=finalsib)
+ICCest(m0) #get ICC #0.3258229
+
+# include within and between family effect
+m1 <- lme(EA_sc~GPS_B_NonCog + GPS_B_Cog + GPS_W_NonCog + GPS_W_Cog, random=~1|FID, method="ML", na.action=na.omit,data=finalsib)
+totaleffect(m1, m0) #get total effect #0.2745393 
+# check if this makes sense
 
 summary(m1)
 
+# Covariates in regression
+
+final <- lme(EA_sc~GPS_B_NonCog + GPS_B_Cog + GPS_W_NonCog + GPS_W_Cog + sex + array + Age + sex*Age + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, random=~1|FID, method="ML", na.action=na.omit,data=finalsib)
+summary(final)
 
 
-# add covariates and include in regression 
+# Extract estimates 
+######################
+names(summary(final))
+summary(final)$tTable
 
+direct_NonCog <- summary(final)$tTable[4,1]# direct effect is beta within 
+direct_Cog <- summary(final)$tTable[5,1]
+total_NonCog <- summary(final)$tTable[2,1] # total is beta between 
+total_Cog <- summary(final)$tTable[3,1]
+indirect_NonCog <- total_NonCog - direct_NonCog #0.1572753
+indirect_Cog <- total_Cog - direct_Cog #0.1578887
+ratio_NonCog <- indirect_NonCog/direct_NonCog #1.42775
+ratio_Cog <- indirect_Cog/direct_Cog #1.278479
 
-
-
-
-
-
-
-
-
+  
+# Save data
+#####################
+write.table(finalsib, file="Data_scores_siblings_UKB_20200310.csv", row.names=F, quote=F) 
 
