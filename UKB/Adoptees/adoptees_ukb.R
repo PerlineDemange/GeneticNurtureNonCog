@@ -182,8 +182,10 @@ bmain$indirect_NonCog <- bmain$total_NonCog - bmain$direct_NonCog
 bmain$indirect_Cog <- bmain$total_Cog - bmain$direct_Cog
 bmain$ratio_NonCog <- bmain$indirect_NonCog / bmain$direct_NonCog
 bmain$ratio_Cog <- bmain$indirect_Cog / bmain$direct_Cog
+bmain$ratio_tot_NonCog <- bmain$indirect_NonCog / bmain$total_NonCog
+bmain$ratio_tot_Cog <- bmain$indirect_Cog / bmain$total_Cog
 
-bmain <- bmain[, 3:10]
+bmain <- bmain[, 3:12]
 
 
 # perform t.tests
@@ -239,6 +241,18 @@ t.test(bmain$ratio_NonCog, bmain$ratio_Cog)
 #   mean of x mean of y
 # 0.1191830 0.4384243
 
+t.test(bmain$ratio_tot_NonCog, bmain$ratio_tot_Cog)
+# Welch Two Sample t-test
+# 
+# data:  bmain$ratio_tot_NonCog and bmain$ratio_tot_Cog
+# t = -206.17, df = 18000, p-value < 2.2e-16
+# alternative hypothesis: true difference in means is not equal to 0
+# 95 percent confidence interval:
+#   -0.2026915 -0.1988738
+# sample estimates:
+#   mean of x  mean of y
+# 0.09947362 0.30025630
+
 
 # Get CI of all 
 meanall <- apply(bmain, 2, mean)
@@ -249,18 +263,18 @@ leftCI <- meanall-error
 rightCI <- meanall+error
 
 tot <- rbind(meanall, sdall, error, leftCI, rightCI)
-# GPS_B_NonCog    GPS_B_Cog GPS_W_NonCog    GPS_W_Cog indirect_NonCog
-# meanall 0.2674605122 0.2813111948 0.1099625552 0.1224556980    0.1574979571
-# sdall   0.0044916333 0.0044946202 0.0091543089 0.0098188458    0.0100652506
-# error   0.0002783892 0.0002785743 0.0005673795 0.0006085672    0.0006238392
-# leftCI  0.2671821230 0.2810326205 0.1093951757 0.1218471308    0.1568741178
-# rightCI 0.2677389014 0.2815897692 0.1105299347 0.1230642652    0.1581217963
-# indirect_Cog ratio_NonCog  ratio_Cog
-# meanall 0.1588554968   1.44925845 1.31226233
-# sdall   0.0106903139   0.20945458 0.19197017
-# error   0.0006625803   0.01298189 0.01189822
-# leftCI  0.1581929165   1.43627656 1.30036411
-# rightCI 0.1595180772   1.46224035 1.32416055
+# direct_NonCog  direct_Cog total_NonCog    total_Cog indirect_NonCog
+# meanall  0.1876422423 0.182288201 0.2090673041 0.2610288382    0.0214250618
+# sdall    0.0124611240 0.012248745 0.0120412232 0.0118393837    0.0173210753
+# error    0.0002442335 0.000240071 0.0002360036 0.0002320477    0.0003394868
+# leftCI   0.1873980088 0.182048130 0.2088313005 0.2607967905    0.0210855749
+# rightCI  0.1878864759 0.182528272 0.2093033077 0.2612608858    0.0217645486
+# indirect_Cog ratio_NonCog   ratio_Cog ratio_tot_NonCog ratio_tot_Cog
+# meanall 0.0787406367  0.119183009 0.438424293      0.099473624   0.300256298
+# sdall   0.0168446013  0.099604507 0.116882129      0.079509067   0.056233639
+# error   0.0003301481  0.001952212 0.002290848      0.001558349   0.001102159
+# leftCI  0.0784104886  0.117230797 0.436133445      0.097915275   0.299154139
+# rightCI 0.0790707848  0.121135222 0.440715141      0.101031973   0.301358457
 
-write.table(tot, "summary_mean_CI_adoption_UKB_20200401.csv", row.names=T, quote=F)
+write.table(tot, "summary_mean_CI_adoption_UKB_20200430.csv", row.names=T, quote=F)
 

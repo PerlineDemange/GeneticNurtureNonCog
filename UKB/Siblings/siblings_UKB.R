@@ -247,8 +247,10 @@ bmain$indirect_NonCog <- bmain$total_NonCog - bmain$direct_NonCog
 bmain$indirect_Cog <- bmain$total_Cog - bmain$direct_Cog
 bmain$ratio_NonCog <- bmain$indirect_NonCog / bmain$direct_NonCog
 bmain$ratio_Cog <- bmain$indirect_Cog / bmain$direct_Cog
-bmain <- bmain[,5:13]
-write.table(bmain, "Data_scores_siblings_UKB_bootstrapped_ratio_20203031.csv", row.names=F, quote=F)
+bmain$ratio_tot_NonCog <- bmain$indirect_NonCog / bmain$total_NonCog
+bmain$ratio_tot_Cog <- bmain$indirect_Cog / bmain$total_Cog
+bmain <- bmain[,5:14]
+write.table(bmain, "Data_scores_siblings_UKB_bootstrapped_ratio_20200430.csv", row.names=F, quote=F)
 
 # perform t.tests
 
@@ -302,6 +304,7 @@ t.test(bmain$ratio_NonCog, bmain$ratio_Cog)
 #   mean of x mean of y
 # 1.449193  1.300764
 
+t.test(bmain$ratio_tot_NonCog, bmain$ratio_tot_Cog)
 
 # Get CI of all 
 meanall <- apply(bmain, 2, mean)
@@ -318,13 +321,13 @@ tot <- rbind(meanall, sdall, error, leftCI, rightCI)
 # error    0.0001868106 0.0001904063 8.945323e-05 8.868215e-05    0.0002077978
 # leftCI   0.1097912881 0.1228971464 2.672041e-01 2.813174e-01    0.1571076111
 # rightCI  0.1101649094 0.1232779590 2.673830e-01 2.814947e-01    0.1575232066
-# indirect_Cog ratio_NonCog   ratio_Cog
-# meanall 0.1583184813  1.449193289 1.300763521
-# sdall   0.0107351602  0.222424405 0.189092945
-# error   0.0002104053  0.004359438 0.003706154
-# leftCI  0.1581080760  1.444833850 1.297057368
-# rightCI 0.1585288866  1.453552727 1.304469675
+# indirect_Cog ratio_NonCog   ratio_Cog ratio_tot_NonCog ratio_tot_Cog
+# meanall 0.1583184813  1.449193289 1.300763521     0.5884245944  0.5624823063
+# sdall   0.0107351602  0.222424405 0.189092945     0.0364114035  0.0352801725
+# error   0.0002104053  0.004359438 0.003706154     0.0007136504  0.0006914787
+# leftCI  0.1581080760  1.444833850 1.297057368     0.5877109440  0.5617908276
+# rightCI 0.1585288866  1.453552727 1.304469675     0.5891382448  0.5631737850
 
 
-write.table(tot, "summary_mean_CI_siblings_UKB_20200331.csv", row.names=T, quote=F)
+write.table(tot, "summary_mean_CI_siblings_UKB_20200430.csv", row.names=T, quote=F)
 
