@@ -233,6 +233,8 @@ hist(finalsib$EA_sc)
 
 # save data
 write.table(finalsib, "Data_siblings_NTR_EA__20200429.csv", row.names=F, quote=F)
+finalsib <- fread("Data_siblings_NTR_EA__20200429.csv")
+head(finalsib)
 
 # * * 2.2.2 Simple linear model -----
 
@@ -269,6 +271,7 @@ summary(final)$tTable
 # GPS_B_Cog       0.26365   0.02670 1038  9.873543  0.0000
 # GPS_W_NonCog    0.11059   0.02872 1392  3.850907  0.0001
 # GPS_W_Cog       0.14032   0.02814 1392  4.986136  0.0000
+write.table(summary(final)$tTable, "Estimates_Siblings_NTR_EA_20200501.csv", quote=F )
 
 direct_NonCog <- summary(final)$tTable[4,1]# direct effect is beta within 
 direct_Cog <- summary(final)$tTable[5,1]
@@ -276,7 +279,7 @@ total_NonCog <- summary(final)$tTable[2,1] # total is beta between
 total_Cog <- summary(final)$tTable[3,1]
 indirect_NonCog <- total_NonCog - direct_NonCog #0.1673022
 indirect_Cog <- total_Cog - direct_Cog #0.1233267
-ratio_NonCog <- indirect_NonCog/direct_NonCog  #0.1673022
+ratio_NonCog <- indirect_NonCog/direct_NonCog  #1.512754
 ratio_Cog <- indirect_Cog/direct_Cog  #0.8788987
 ratio_tot_NonCog <- indirect_NonCog/total_NonCog #0.6020303
 ratio_tot_Cog <- indirect_Cog/total_Cog #0.4677733
@@ -446,6 +449,7 @@ hist(finalsib$scoreCog_sc)
 
 # save data
 write.table(finalsib, "Data_siblings_NTR_CITO_20200430.csv", row.names=F, quote=F)
+finalsib <- fread("Data_siblings_NTR_CITO_20200430.csv")
 
 # * * 2.3.2 Simple linear model -----
 
@@ -481,7 +485,7 @@ summary(final)$tTable
 # GPS_B_Cog       0.31725   0.03385 753  9.371423  0.0000
 # GPS_W_NonCog    0.17727   0.03794 857  4.672696  0.0000
 # GPS_W_Cog       0.23336   0.03877 857  6.019014  0.0000
-
+write.table(summary(final)$tTable, "Estimates_Siblings_NTR_CITO_20200501.csv", quote=F )
 
 
 direct_NonCog <- summary(final)$tTable[4,1]# direct effect is beta within 
@@ -721,8 +725,9 @@ datatrios <- datatrios[order(datatrios$FamilyNumber),]
 
 # * 3.2 Trios analyses with EA =========
 summary(is.na(datatrios$EA_sc)) #data for 2207
-
 hist(datatrios$EA_sc)
+
+datatriosEA <- datatrios[!is.na(datatrios$EA_sc),]
 
 # * * 3.2.1 Analyses with PGS from both parents pulled together -------
 
@@ -760,7 +765,7 @@ hist(datatrios$EA_sc)
 # With lme 
 EA_bothparents_lme <- lme(EA_sc ~ SCORE.Nontrans.Cog_sc + SCORE.Nontrans.NonCog_sc + SCORE.Trans.Cog_sc + SCORE.Trans.NonCog_sc +
                             sex + yob + sex*yob + 
-                            Platform + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, random=~1|FamilyNumber, method="ML", na.action=na.omit, data=datatrios)
+                            Platform + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, random=~1|FamilyNumber, method="ML", na.action=na.omit, data=datatriosEA)
 
 # Extract estimates 
 
@@ -786,33 +791,44 @@ EA_bothparents_coef <- summary(EA_bothparents_lme)$tTable
 # PC10                      -5.354564703 7.865695e+00  935 -0.6807491 4.961988e-01
 # sex:yob                    0.005743111 5.222603e-03  935  1.0996644 2.717614e-01
 
-write.table(EA_bothparents_coef, "Estimates_Trios_NTR_EA.csv", quote=F )
+write.table(EA_bothparents_coef, "Estimates_Trios_NTR_EA_20200501.csv", quote=F )
 
-
-#                   Value Std.Error  DF   t-value p-value
-# (Intercept)    16.33028  42.99540 857  0.379815  0.7042
-# GPS_B_NonCog    0.17335   0.03410 753  5.083048  0.0000
-# GPS_B_Cog       0.31725   0.03385 753  9.371423  0.0000
-# GPS_W_NonCog    0.17727   0.03794 857  4.672696  0.0000
-# GPS_W_Cog       0.23336   0.03877 857  6.019014  0.0000
+total_NonCog <- EA_bothparents_coef[5,1] # total is transmitted
+total_Cog <- EA_bothparents_coef[4,1]
+indirect_NonCog <- EA_bothparents_coef[3,1] #indirect is nontransmitted
+indirect_Cog <- EA_bothparents_coef[2,1]
+direct_NonCog <- total_NonCog - indirect_NonCog #0.058472
+direct_Cog <- total_Cog - indirect_Cog #0.07475011
+ratio_NonCog <- indirect_NonCog/direct_NonCog  #1.436308
+ratio_Cog <- indirect_Cog/direct_Cog  #1.118841
+ratio_tot_NonCog <- indirect_NonCog/total_NonCog #0.5895428
+ratio_tot_Cog <- indirect_Cog/total_Cog #0.528044
 
 
 # * * * 3.2.1.1 Bootstrapping ------
 nboot <- 10000
-bootcoef<-function(data,index){
-  datx<-datatrios[index,]
-  mod<-gee(EA_sc ~ SCORE.Nontrans.Cog_sc + SCORE.Nontrans.NonCog_sc + SCORE.Trans.Cog_sc + SCORE.Trans.NonCog_sc +
-              sex + yob + sex*yob + 
-              Platform + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, id = FamilyNumber, data=datx, corstr = "exchangeable")  
-  mod$coefficients
-    }
+# bootcoef<-function(data,index){
+#   datx<-datatrios[index,]
+#   mod<-gee(EA_sc ~ SCORE.Nontrans.Cog_sc + SCORE.Nontrans.NonCog_sc + SCORE.Trans.Cog_sc + SCORE.Trans.NonCog_sc +
+#               sex + yob + sex*yob + 
+#               Platform + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, id = FamilyNumber, data=datx, corstr = "exchangeable")  
+#   mod$coefficients
+#     }
 
-boot.out<-boot(datatrios,bootcoef,nboot, parallel = "multicore", ncpus=20) 
+bootcoef<-function(data,index){
+  datx<-data[index,]
+  mod <- lme(EA_sc ~ SCORE.Nontrans.Cog_sc + SCORE.Nontrans.NonCog_sc + SCORE.Trans.Cog_sc + SCORE.Trans.NonCog_sc +
+               sex + yob + sex*yob + 
+               Platform + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, random=~1|FamilyNumber, method="ML", na.action=na.omit, data=datx, control=lmeControl(opt = "optim"))
+  fixef(mod) #get fixed effects
+}
+
+boot.out<-boot(datatriosEA,bootcoef,nboot, parallel = "multicore", ncpus=20) 
 head(boot.out)
 
 
 #plot to check bootstrapping
-png("NTR.trios.EA.bootstrap.png",
+png("NTR.trios.EA.bootstrap_lme.png",
     width = 10,
     height = 6,
     units = 'in',
@@ -822,13 +838,19 @@ dev.off()
 
 # get CI 
 boot.ci(boot.out, type = c("norm", "basic"))
-# Intervals : 
+# Intervals with gee: 
 # Level      Normal              Basic         
 # 95%   (-43.23,  33.70 )   (-43.72,  33.49 )  
 
+# Intervals : 
+#   Level      Normal              Basic         
+# 95%   (-61.86,  23.97 )   (-61.50,  23.54 )  
+
 bootoutput <- as.data.frame(boot.out$t)
 colnames(bootoutput) <- rownames(as.data.frame(boot.out$t0))
-write.table(bootoutput, "Data_scores_trios_NTR_EA_bootstrapped_20200430.csv", row.names=F, quote=F)
+#write.table(bootoutput, "Data_scores_trios_NTR_EA_bootstrapped_20200430.csv", row.names=F, quote=F)
+write.table(bootoutput, "Data_scores_trios_NTR_EA_bootstrapped_20200501.csv", row.names=F, quote=F)
+
 
 bmain <- bootoutput[,2:5] #save variables of interest
 head(bmain)
@@ -846,7 +868,8 @@ bmain$ratio_tot_NonCog <- bmain$indirect_NonCog / bmain$total_NonCog
 bmain$ratio_tot_Cog <- bmain$indirect_Cog / bmain$total_Cog
 bmain <- bmain[,5:14]
 
-write.table(bmain, "Data_scores_trios_NTR_EA_bootstrapped_ratio_20200430.csv", row.names=F, quote=F)
+#write.table(bmain, "Data_scores_trios_NTR_EA_bootstrapped_ratio_20200430.csv", row.names=F, quote=F)
+write.table(bmain, "Data_scores_trios_NTR_EA_bootstrapped_ratio_20200501.csv", row.names=F, quote=F)
 
 # Get CI of all 
 meanall <- apply(bmain, 2, mean)
@@ -857,20 +880,16 @@ leftCI <- meanall-error
 rightCI <- meanall+error
 
 tot <- rbind(meanall, sdall, error, leftCI, rightCI)
-#         total_NonCog    total_Cog indirect_NonCog indirect_Cog direct_NonCog   direct_Cog ratio_NonCog  ratio_Cog
-# meanall 0.1457059604 0.1547392084    0.0819470346 0.0821408088   0.063758926 0.0725983996    2.0347207 1.30552865
-# sdall   0.0150670724 0.0146762133    0.0153795942 0.0145177580   0.022136580 0.0212932033   20.3300056 4.17200975
-# error   0.0002953092 0.0002876485    0.0003014345 0.0002845428   0.000433869 0.0004173391    0.3984608 0.08176989
-# leftCI  0.1454106512 0.1544515599    0.0816456001 0.0818562660   0.063325057 0.0721810605    1.6362599 1.22375877
-# rightCI 0.1460012696 0.1550268569    0.0822484691 0.0824253516   0.064192795 0.0730157387    2.4331815 1.38729854
-#         ratio_tot_NonCog ratio_tot_Cog
-# meanall      0.569739252   0.536283529
-# sdall        0.126934845   0.111758468
-# error        0.002487877   0.002190426
-# leftCI       0.567251375   0.534093103
-# rightCI      0.572227129   0.538473955
+# total_NonCog   total_Cog indirect_NonCog indirect_Cog direct_NonCog   direct_Cog ratio_NonCog ratio_Cog ratio_tot_NonCog ratio_tot_Cog
+# meanall 0.1427658660 0.158462921    0.0848940274 0.0845116680   0.057871839 0.0739512529     2.326123 1.4675715      0.606917266   0.541910532
+# sdall   0.0152555048 0.015046040    0.0154951208 0.0145911894   0.026029816 0.0248108570    56.223616 3.5681933      0.153429948   0.125143465
+# error   0.0002990024 0.000294897    0.0003036988 0.0002859821   0.000510175 0.0004862839     1.101963 0.0699353      0.003007172   0.002452767
+# leftCI  0.1424668637 0.158168024    0.0845903286 0.0842256860   0.057361664 0.0734649691     1.224160 1.3976362      0.603910094   0.539457765
+# rightCI 0.1430648684 0.158757818    0.0851977262 0.0847976501   0.058382014 0.0744375368     3.428085 1.5375068      0.609924438   0.544363299
 
-write.table(tot, "summary_mean_CI_trios_NTR_EA_20200430.csv", row.names=T, quote=F)
+#write.table(tot, "summary_mean_CI_trios_NTR_EA_20200430.csv", row.names=T, quote=F)
+write.table(tot, "summary_mean_CI_trios_NTR_EA_20200501.csv", row.names=T, quote=F)
+
 
 # * * 3.2.2 Difference between parents -----
 
@@ -880,53 +899,105 @@ summary(lm(EA_sc ~ SCORE.Nontrans.Dad.Cog_sc + SCORE.Nontrans.Mom.Cog_sc + SCORE
 # * 3.3 Trios analyses with CITO  ===========
 summary(is.na(datatrios$CITO_sc)) # data for 1526
 
+datatriosCITO <- datatrios[!is.na(datatrios$CITO_sc),]
+
 # * * 3.3.1 Analyses with PGS from both parents pulled together -------
-CITO_bothparents <- gee(CITO_sc ~ SCORE.Nontrans.Cog_sc + SCORE.Nontrans.NonCog_sc + SCORE.Trans.Cog_sc + SCORE.Trans.NonCog_sc +
-                        sex + yob + sex*yob + 
-                        Platform + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, id = FamilyNumber, data=datatrios, corstr = "exchangeable")
+#with gee
+# CITO_bothparents <- gee(CITO_sc ~ SCORE.Nontrans.Cog_sc + SCORE.Nontrans.NonCog_sc + SCORE.Trans.Cog_sc + SCORE.Trans.NonCog_sc +
+#                         sex + yob + sex*yob + 
+#                         Platform + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, id = FamilyNumber, data=datatriosCITO, corstr = "exchangeable")
+# 
+# 
+# summary(CITO_bothparents)
+# CITO_bothparents_coef <- as.data.frame(summary(CITO_bothparents)$coef)
+# head(CITO_bothparents_coef)
+# colnames(CITO_bothparents_coef) <- c("Estimate", "naive_SE", "naive_Z", "robust_SE", "robust_Z")
+# CITO_bothparents_coef$Pval <- 2*pnorm(-abs(CITO_bothparents_coef$robust_Z))
+# 
+# #                             Estimate    naive_SE    naive_Z   robust_SE   robust_Z         Pval
+# # (Intercept)              28.12470779 45.89728140  0.6127750 45.84512542  0.6134722 5.395642e-01
+# # SCORE.Nontrans.Cog_sc     0.01581185  0.02050492  0.7711248  0.02091467  0.7560171 4.496390e-01
+# # SCORE.Nontrans.NonCog_sc  0.02486621  0.02018873  1.2316879  0.02078278  1.1964818 2.315086e-01
+# # SCORE.Trans.Cog_sc        0.17341861  0.02096710  8.2709867  0.02109865  8.2194155 2.044973e-16
+# # SCORE.Trans.NonCog_sc     0.13380771  0.02021092  6.6205657  0.02061364  6.4912229 8.514240e-1
+# 
+# # Extract estimates 
+# total_NonCog <- CITO_bothparents_coef[5,1] # total is transmitted
+# total_Cog <- CITO_bothparents_coef[4,1]
+# indirect_NonCog <- CITO_bothparents_coef[3,1] #indirect is nontransmitted
+# indirect_Cog <- CITO_bothparents_coef[2,1]
+# direct_NonCog <- total_NonCog - indirect_NonCog #0.1089415
+# direct_Cog <- total_Cog - indirect_Cog #0.1576068
+# ratio_NonCog <- indirect_NonCog/direct_NonCog  #0.2282529
+# ratio_Cog <- indirect_Cog/direct_Cog  #0.1003247
+# ratio_tot_NonCog <- indirect_NonCog/total_NonCog #0.1858354
+# ratio_tot_Cog <- indirect_Cog/total_Cog #0.0911773
 
+# wiht lme
+CITO_bothparents_lme <- lme(CITO_sc ~ SCORE.Nontrans.Cog_sc + SCORE.Nontrans.NonCog_sc + SCORE.Trans.Cog_sc + SCORE.Trans.NonCog_sc +
+                            sex + yob + sex*yob + 
+                            Platform + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, random=~1|FamilyNumber, method="ML", na.action=na.omit, data=datatrios)
 
-summary(CITO_bothparents)
-CITO_bothparents_coef <- as.data.frame(summary(CITO_bothparents)$coef)
-head(CITO_bothparents_coef)
-colnames(CITO_bothparents_coef) <- c("Estimate", "naive_SE", "naive_Z", "robust_SE", "robust_Z")
-CITO_bothparents_coef$Pval <- 2*pnorm(-abs(CITO_bothparents_coef$robust_Z))
-#                             Estimate    naive_SE    naive_Z   robust_SE   robust_Z         Pval
-# (Intercept)              28.12470779 45.89728140  0.6127750 45.84512542  0.6134722 5.395642e-01
-# SCORE.Nontrans.Cog_sc     0.01581185  0.02050492  0.7711248  0.02091467  0.7560171 4.496390e-01
-# SCORE.Nontrans.NonCog_sc  0.02486621  0.02018873  1.2316879  0.02078278  1.1964818 2.315086e-01
-# SCORE.Trans.Cog_sc        0.17341861  0.02096710  8.2709867  0.02109865  8.2194155 2.044973e-16
-# SCORE.Trans.NonCog_sc     0.13380771  0.02021092  6.6205657  0.02061364  6.4912229 8.514240e-11
+CITO_bothparents_coef <- summary(CITO_bothparents_lme)$tTable
+# Value    Std.Error  DF     t-value      p-value
+# (Intercept)               30.781869851  45.67037662 764  0.67400079 5.005147e-01
+# SCORE.Nontrans.Cog_sc      0.015249914   0.02063496 743  0.73903288 4.601204e-01
+# SCORE.Nontrans.NonCog_sc   0.023512520   0.02029745 743  1.15839770 2.470740e-01
+# SCORE.Trans.Cog_sc         0.173913213   0.02108268 743  8.24910436 7.242216e-16
+# SCORE.Trans.NonCog_sc      0.135007177   0.02031540 743  6.64555739 5.844158e-11
+# sex                       -3.992045812  27.18243599 743 -0.14686122 8.832814e-01
+# yob                       -0.016807625   0.02291623 743 -0.73343770 4.635229e-01
+# Platform                   0.036139464   0.01395023 743  2.59059945 9.768755e-03
+# PC1                       -1.403532215 143.54479456 743 -0.00977766 9.922013e-01
+# PC2                      -84.914487985  78.41541985 743 -1.08287998 2.792130e-01
+# PC3                      -97.696503748  47.71903599 743 -2.04732769 4.097711e-02
+# PC4                        4.494302461  40.03968844 743  0.11224619 9.106585e-01
+# PC5                        9.043699488  11.16136715 743  0.81026808 4.180456e-01
+# PC6                       -4.281199074  20.09808240 743 -0.21301530 8.313735e-01
+# PC7                       -6.687229311  20.68168983 743 -0.32334057 7.465283e-01
+# PC8                        1.509112893  16.81104173 743  0.08976915 9.284949e-01
+# PC9                       11.074650686  12.90338483 743  0.85827485 3.910175e-01
+# PC10                     -19.811338149   9.80530222 743 -2.02047196 4.369276e-02
+# sex:yob                    0.001933724   0.01364669 743  0.14169916 8.873561e-01
 
-# Extract estimates 
+write.table(CITO_bothparents_coef, "Estimates_Trios_NTR_CITO_20200501.csv", quote=F )
+
+# Extract estimates
 total_NonCog <- CITO_bothparents_coef[5,1] # total is transmitted
 total_Cog <- CITO_bothparents_coef[4,1]
 indirect_NonCog <- CITO_bothparents_coef[3,1] #indirect is nontransmitted
 indirect_Cog <- CITO_bothparents_coef[2,1]
-direct_NonCog <- total_NonCog - indirect_NonCog #0.1089415
-direct_Cog <- total_Cog - indirect_Cog #0.1576068
-ratio_NonCog <- indirect_NonCog/direct_NonCog  #0.2282529
-ratio_Cog <- indirect_Cog/direct_Cog  #0.1003247
-ratio_tot_NonCog <- indirect_NonCog/total_NonCog #0.1858354
-ratio_tot_Cog <- indirect_Cog/total_Cog #0.09117735
-
+direct_NonCog <- total_NonCog - indirect_NonCog #0.1114947
+direct_Cog <- total_Cog - indirect_Cog #0.1586633
+ratio_NonCog <- indirect_NonCog/direct_NonCog  #0.2108847
+ratio_Cog <- indirect_Cog/direct_Cog  #0.09611494
+ratio_tot_NonCog <- indirect_NonCog/total_NonCog #0.1741576
+ratio_tot_Cog <- indirect_Cog/total_Cog #0.08768692
 
 # * * * 3.3.1.1 Bootstrapping ------
 nboot <- 10000
-bootcoef<-function(data,index){
-  datx<-datatrios[index,]
-  mod<-gee(CITO_sc ~ SCORE.Nontrans.Cog_sc + SCORE.Nontrans.NonCog_sc + SCORE.Trans.Cog_sc + SCORE.Trans.NonCog_sc +
-              sex + yob + sex*yob + 
-              Platform + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, id = FamilyNumber, data=datx, corstr = "exchangeable")  
-  mod$coefficients
-    }
+# bootcoef<-function(data,index){
+#   datx<-datatrios[index,]
+#   mod<-gee(CITO_sc ~ SCORE.Nontrans.Cog_sc + SCORE.Nontrans.NonCog_sc + SCORE.Trans.Cog_sc + SCORE.Trans.NonCog_sc +
+#               sex + yob + sex*yob + 
+#               Platform + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, id = FamilyNumber, data=datx, corstr = "exchangeable")  
+#   mod$coefficients
+# }
 
-boot.out<-boot(datatrios,bootcoef,nboot, parallel = "multicore", ncpus=20) 
+bootcoef<-function(data,index){
+  datx<-data[index,]
+  mod <- lme(CITO_sc ~ SCORE.Nontrans.Cog_sc + SCORE.Nontrans.NonCog_sc + SCORE.Trans.Cog_sc + SCORE.Trans.NonCog_sc +
+               sex + yob + sex*yob + 
+               Platform + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, random=~1|FamilyNumber, method="ML", na.action=na.omit, data=datx, control=lmeControl(opt = "optim"))
+  fixef(mod) #get fixed effects
+}
+
+boot.out<-boot(datatriosCITO,bootcoef,nboot, parallel = "multicore", ncpus=20) 
 head(boot.out)
 
 
 #plot to check bootstrapping
-png("NTR.trios.CITO.bootstrap.png",
+png("NTR.trios.CITO.bootstrap_lme.png",
     width = 10,
     height = 6,
     units = 'in',
@@ -937,13 +1008,14 @@ dev.off()
 # get CI 
 boot.ci(boot.out, type = c("norm", "basic"))
 # Intervals : 
-# Level      Normal              Basic         
-# 95%   (-43.23,  33.70 )   (-43.72,  33.49 )  
+#   Level      Normal              Basic         
+# 95%   (-98.78, 113.32 )   (-98.07, 112.90 )  
+# Calculations and Intervals on Original Scale
 
 bootoutput <- as.data.frame(boot.out$t)
 colnames(bootoutput) <- rownames(as.data.frame(boot.out$t0))
 head(bootoutput)
-write.table(bootoutput, "Data_scores_trios_NTR_CITO_bootstrapped_20200430.csv", row.names=F, quote=F)
+write.table(bootoutput, "Data_scores_trios_NTR_CITO_bootstrapped_20200501.csv", row.names=F, quote=F)
 
 bmain <- bootoutput[,2:5] #save variables of interest
 head(bmain)
@@ -961,7 +1033,8 @@ bmain$ratio_tot_NonCog <- bmain$indirect_NonCog / bmain$total_NonCog
 bmain$ratio_tot_Cog <- bmain$indirect_Cog / bmain$total_Cog
 bmain <- bmain[,5:14]
 
-write.table(bmain, "Data_scores_trios_NTR_CITO_bootstrapped_ratio_20200430.csv", row.names=F, quote=F)
+write.table(bmain, "Data_scores_trios_NTR_CITO_bootstrapped_ratio_20200501.csv", row.names=F, quote=F)
+#bmain <- fread("Data_scores_trios_NTR_CITO_bootstrapped_ratio_20200501.csv")
 
 # Get CI of all 
 meanall <- apply(bmain, 2, mean)
@@ -972,20 +1045,14 @@ leftCI <- meanall-error
 rightCI <- meanall+error
 
 tot <- rbind(meanall, sdall, error, leftCI, rightCI)
-#         total_NonCog    total_Cog indirect_NonCog indirect_Cog direct_NonCog   direct_Cog ratio_NonCog  ratio_Cog
-# meanall 0.1457059604 0.1547392084    0.0819470346 0.0821408088   0.063758926 0.0725983996    2.0347207 1.30552865
-# sdall   0.0150670724 0.0146762133    0.0153795942 0.0145177580   0.022136580 0.0212932033   20.3300056 4.17200975
-# error   0.0002953092 0.0002876485    0.0003014345 0.0002845428   0.000433869 0.0004173391    0.3984608 0.08176989
-# leftCI  0.1454106512 0.1544515599    0.0816456001 0.0818562660   0.063325057 0.0721810605    1.6362599 1.22375877
-# rightCI 0.1460012696 0.1550268569    0.0822484691 0.0824253516   0.064192795 0.0730157387    2.4331815 1.38729854
-#         ratio_tot_NonCog ratio_tot_Cog
-# meanall      0.569739252   0.536283529
-# sdall        0.126934845   0.111758468
-# error        0.002487877   0.002190426
-# leftCI       0.567251375   0.534093103
-# rightCI      0.572227129   0.538473955
+# total_NonCog    total_Cog indirect_NonCog indirect_Cog direct_NonCog   direct_Cog ratio_NonCog   ratio_Cog ratio_tot_NonCog ratio_tot_Cog
+# meanall 0.1429005593 0.1766437892    0.0166190641 0.0149600877  0.1262814952 0.1616837015  0.185701120 0.121179949      0.127761312   0.092056308
+# sdall   0.0190448502 0.0201216026    0.0188627591 0.0187305407  0.0328073088 0.0335937158  0.306075655 0.162733235      0.146985320   0.114428568
+# error   0.0003732722 0.0003943762    0.0003697033 0.0003671119  0.0006430114 0.0006584247  0.005998973 0.003189513      0.002880859   0.002242759
+# leftCI  0.1425272871 0.1762494130    0.0162493608 0.0145929758  0.1256384837 0.1610252768  0.179702147 0.117990436      0.124880452   0.089813549
+# rightCI 0.1432738315 0.1770381654    0.0169887674 0.0153271995  0.1269245066 0.1623421262  0.191700093 0.124369462      0.130642171   0.094299067
 
-write.table(tot, "summary_mean_CI_trios_NTR_CITO_20200430.csv", row.names=T, quote=F)
+write.table(tot, "summary_mean_CI_trios_NTR_CITO_20200501.csv", row.names=T, quote=F)
 
 
 # * * 3.3.2 Analyses with PGS from parents separately  -------
