@@ -27,7 +27,7 @@ names(pheno)[names(pheno) == 'fisnumber'] <- 'FISNumber'
 
 # do with old pheno to test
 #pheno <- read.csv2("D:/Documents/CogNonCog/NTRphenotypes/educational_attainment_NTR.csv", sep=";")
-#colnames(pheno)[colnames(pheno)=="ï..FISNumber"] <- "FISNumber" # all first columns are not weel named when exporting csv from spss in csv 
+#colnames(pheno)[colnames(pheno)=="?..FISNumber"] <- "FISNumber" # all first columns are not weel named when exporting csv from spss in csv 
 
 # get variable and value labels
 label <- read_spss('Phenotypic_data/NTR-DAC-1927_Demange_parental_env_EA_20200429.sav')
@@ -212,18 +212,18 @@ datasib <- data
 # * 2.2 Sibling analysis with EA ==========================
 # * * 2.2.1 Clean data and scale variables ------
 # Keep only data with EA
-datasibEA <- datasib[!is.na(datasib$Eduyears),] #3144
+datasibEA <- datasib[!is.na(datasib$Eduyears),] #3129
 head(datasibEA)
 
 number <- as.data.frame(table(datasibEA$FamilyNumber))
 number
 onemember <- number[which(number$Freq == 1),] #identify family with only one member in this data #695
 list_onemember <- onemember$Var1 
-datasibEA_sibonly<- datasibEA[!which(datasibEA$FamilyNumber %in% list_onemember), ] #2449
+datasibEA_sibonly<- datasibEA[!which(datasibEA$FamilyNumber %in% list_onemember), ] #2438
 head(datasibEA_sibonly)
 
 finalsib <- as.data.frame(datasibEA_sibonly)
-# sample size = 2449
+# sample size = 2438
 
 # scale variables
 finalsib[,c("EA_sc","scoreNonCog_sc", "scoreCog_sc")]<-apply(finalsib[,c("Eduyears","SCORE.NonCog", "SCORE.Cog")],
@@ -232,9 +232,11 @@ finalsib[,c("EA_sc","scoreNonCog_sc", "scoreCog_sc")]<-apply(finalsib[,c("Eduyea
 hist(finalsib$EA_sc)
 
 # save data
-write.table(finalsib, "Data_siblings_NTR_EA__20200429.csv", row.names=F, quote=F)
-finalsib <- fread("Data_siblings_NTR_EA__20200429.csv")
-head(finalsib)
+# write.table(finalsib, "Data_siblings_NTR_EA_20200511.csv", row.names=F, quote=F)
+# finalsib <- fread("Data_siblings_NTR_EA_20200511.csv")
+# head(finalsib)
+
+
 
 # * * 2.2.2 Simple linear model -----
 
@@ -255,6 +257,7 @@ finalsib<-merge(finalsib,meanC,by="FamilyNumber")
 finalsib$GPS_W_NonCog <- finalsib$scoreNonCog_sc  - finalsib$GPS_B_NonCog  
 finalsib$GPS_W_Cog <- finalsib$scoreCog_sc  - finalsib$GPS_B_Cog  
 
+
 # * * 2.2.4 Run mixed model between-within regression -----
 final <- lme(EA_sc~GPS_B_NonCog + GPS_B_Cog + GPS_W_NonCog + GPS_W_Cog + 
                sex + yob + sex*yob +
@@ -265,29 +268,30 @@ summary(final)
 # Extract estimates 
 names(summary(final))
 summary(final)$tTable
-#                  Value Std.Error   DF   t-value p-value
-# (Intercept)   -12.70919   9.12855 1392 -1.392247  0.1641
-# GPS_B_NonCog    0.27790   0.02662 1038 10.440241  0.0000
-# GPS_B_Cog       0.26365   0.02670 1038  9.873543  0.0000
-# GPS_W_NonCog    0.11059   0.02872 1392  3.850907  0.0001
-# GPS_W_Cog       0.14032   0.02814 1392  4.986136  0.0000
-write.table(summary(final)$tTable, "Estimates_Siblings_NTR_EA_20200501.csv", quote=F )
+# Value    Std.Error   DF    t-value      p-value
+# (Intercept)  -1.294493e+01  9.172725960 1384 -1.4112414 1.583982e-01
+# GPS_B_NonCog  2.700489e-01  0.026677347 1035 10.1227806 4.959911e-23
+# GPS_B_Cog     2.587895e-01  0.026813999 1035  9.6512816 3.662399e-21
+# GPS_W_NonCog  9.891056e-02  0.028762993 1384  3.4388131 6.016225e-04
+# GPS_W_Cog     1.339745e-01  0.028051887 1384  4.7759518 1.978682e-06
+
+# write.table(summary(final)$tTable, "Estimates_Siblings_NTR_EA_20200511.csv", quote=F )
 
 direct_NonCog <- summary(final)$tTable[4,1]# direct effect is beta within 
 direct_Cog <- summary(final)$tTable[5,1]
 total_NonCog <- summary(final)$tTable[2,1] # total is beta between 
 total_Cog <- summary(final)$tTable[3,1]
-indirect_NonCog <- total_NonCog - direct_NonCog #0.1673022
-indirect_Cog <- total_Cog - direct_Cog #0.1233267
-ratio_NonCog <- indirect_NonCog/direct_NonCog  #1.512754
-ratio_Cog <- indirect_Cog/direct_Cog  #0.8788987
-ratio_tot_NonCog <- indirect_NonCog/total_NonCog #0.6020303
-ratio_tot_Cog <- indirect_Cog/total_Cog #0.4677733
+indirect_NonCog <- total_NonCog - direct_NonCog 
+indirect_Cog <- total_Cog - direct_Cog 
+ratio_NonCog <- indirect_NonCog/direct_NonCog  
+ratio_Cog <- indirect_Cog/direct_Cog  
+ratio_tot_NonCog <- indirect_NonCog/total_NonCog 
+ratio_tot_Cog <- indirect_Cog/total_Cog 
 
 # * * 2.2.5 Bootstrapping ------
 nboot <- 10000
 bootcoef<-function(data,index){
-  datx<-finalsib[index,]
+  datx<-data[index,]
   mod<-lme(EA_sc~GPS_B_NonCog + GPS_B_Cog + GPS_W_NonCog + GPS_W_Cog + 
                sex + yob + sex*yob +
                Platform + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, random=~1|FamilyNumber, method="ML", na.action=na.omit, data=datx, control=lmeControl(opt = "optim"))
@@ -297,8 +301,10 @@ bootcoef<-function(data,index){
 # carry out bootstrap
 boot.out<-boot(finalsib,bootcoef,nboot, parallel = "multicore", ncpus=20) 
 
+#saveRDS(boot.out, "bootstrapped_output_siblings_NTR_EA_20200511.Rda")
+
 #plot to check bootstrapping
-png("NTR.sib.EA.bootstrap.png",
+png("NTR.sib.EA.bootstrap_20200511.png",
     width = 10,
     height = 6,
     units = 'in',
@@ -306,135 +312,139 @@ png("NTR.sib.EA.bootstrap.png",
 plot(boot.out)
 dev.off()
 
-# get CI 
-boot.ci(boot.out, type = c("norm", "basic"))
 
-#Intervals : 
-#Level      Normal              Basic         
-#95%   (-33.09,   7.16 )   (-33.17,   7.33 )  
-
+#Save t output of boot
 bootoutput <- as.data.frame(boot.out$t)
 colnames(bootoutput) <- rownames(as.data.frame(boot.out$t0))
-write.table(bootoutput, "Data_scores_siblings_NTR_EA_bootstrapped_2020429.csv", row.names=F, quote=F)
+head(bootoutput)
+#write.table(bootoutput, "Data_scores_siblings_NTR_EA_bootstrapped_20200511.csv", row.names=F, quote=F)
 
-bmain <- bootoutput[,2:5] #save variables of interest
-head(bmain)
+# get values out of boot.out for all estimates + create indirect and ratio estimates
+original <- as.data.frame(t(boot.out$t0)) # estimates of the original sample #best estimates of the effects
+
+original$direct_NonCog <- original$GPS_W_NonCog
+original$direct_Cog <- original$GPS_W_Cog
+original$total_NonCog <- original$GPS_B_NonCog
+original$total_Cog <- original$GPS_B_Cog
+original$indirect_NonCog <- original$total_NonCog - original$direct_NonCog
+original$indirect_Cog <- original$total_Cog - original$direct_Cog
+original$ratio_NonCog <- original$indirect_NonCog / original$direct_NonCog
+original$ratio_Cog <- original$indirect_Cog / original$direct_Cog
+original$ratio_tot_NonCog <- original$indirect_NonCog / original$total_NonCog
+original$ratio_tot_Cog <- original$indirect_Cog / original$total_Cog
 
 
-# Create indirect and ratio variables
-bmain$direct_NonCog <- bmain$GPS_W_NonCog
-bmain$direct_Cog <- bmain$GPS_W_Cog
-bmain$total_NonCog <- bmain$GPS_B_NonCog
-bmain$total_Cog <- bmain$GPS_B_Cog
-bmain$indirect_NonCog <- bmain$total_NonCog - bmain$direct_NonCog
-bmain$indirect_Cog <- bmain$total_Cog - bmain$direct_Cog
-bmain$ratio_NonCog <- bmain$indirect_NonCog / bmain$direct_NonCog
-bmain$ratio_Cog <- bmain$indirect_Cog / bmain$direct_Cog
-bmain$ratio_tot_NonCog <- bmain$indirect_NonCog / bmain$total_NonCog
-bmain$ratio_tot_Cog <- bmain$indirect_Cog / bmain$total_Cog
-bmain <- bmain[,5:14]
-write.table(bmain, "Data_scores_siblings_NTR_EA_bootstrapped_ratio_2020429.csv", row.names=F, quote=F)
+bootoutput$direct_NonCog <- bootoutput$GPS_W_NonCog
+bootoutput$direct_Cog <- bootoutput$GPS_W_Cog
+bootoutput$total_NonCog <- bootoutput$GPS_B_NonCog
+bootoutput$total_Cog <- bootoutput$GPS_B_Cog
+bootoutput$indirect_NonCog <- bootoutput$total_NonCog - bootoutput$direct_NonCog
+bootoutput$indirect_Cog <- bootoutput$total_Cog - bootoutput$direct_Cog
+bootoutput$ratio_NonCog <- bootoutput$indirect_NonCog / bootoutput$direct_NonCog
+bootoutput$ratio_Cog <- bootoutput$indirect_Cog / bootoutput$direct_Cog
+bootoutput$ratio_tot_NonCog <- bootoutput$indirect_NonCog / bootoutput$total_NonCog
+bootoutput$ratio_tot_Cog <- bootoutput$indirect_Cog / bootoutput$total_Cog
 
+
+mean <- apply(bootoutput, 2, mean) # mean of the estimates of the bootstrap resamples
+bias <- mean - original
+se <- apply(bootoutput, 2, sd) #the standard deviation of the bootstrap estimates is the standard error of the sample estimates
+
+error <- qnorm(0.975)*se
+leftCI <- original - bias - error # normal Ci from boot.ci 
+rightCI <- original - bias + error
+# Other kind of CI given by boot.ci, not saved
+# leftCI3 <- quantile(bootoutput$X, 0.025) # percentile CI from boot.ci 
+# rightCI3 <- quantile(bootoutput$X, 0.975)
+# leftCI4 <- 2*original$SCORE.Nontrans.Cog_sc - quantile(bootoutput$SCORE.Nontrans.Cog_sc, 0.975) #basic ci from boot.ci
+# rightCI4 <- 2*original$SCORE.Nontrans.Cog_sc - quantile(bootoutput$SCORE.Nontrans.Cog_sc, 0.025)
+
+statsoutput <- rbind(original, mean, bias, se, error, leftCI, rightCI)
+statsoutput$Estimates <- c('original', 'mean', 'bias', 'se', 'error', 'leftCI', 'rightCI')
+statsoutput
+tot <- statsoutput[,c(ncol(statsoutput), 1:(ncol(statsoutput)-1))]
+tot
+
+#write.table(tot, "summary_mean_CI_siblings_NTR_EA_20200511.csv", row.names=T, quote=F)
+
+bmain <- bootoutput
 #Perform  t-tests
 t.test(bmain$indirect_NonCog, bmain$direct_NonCog)
 # Welch Two Sample t-test
 # 
 # data:  bmain$indirect_NonCog and bmain$direct_NonCog
-# t = 127.92, df = 19592, p-value < 2.2e-16
+# t = 158.78, df = 19628, p-value < 2.2e-16
 # alternative hypothesis: true difference in means is not equal to 0
 # 95 percent confidence interval:
-#  0.06048688 0.06236936
+#   0.07606803 0.07796959
 # sample estimates:
-# mean of x mean of y 
-# 0.1696953 0.1082671 
+#   mean of x  mean of y 
+# 0.17362816 0.09660936 
 
 t.test(bmain$indirect_Cog, bmain$direct_Cog)
 # Welch Two Sample t-test
 # 
 # data:  bmain$indirect_Cog and bmain$direct_Cog
-# t = -23.984, df = 19669, p-value < 2.2e-16
+# t = -7.8764, df = 19617, p-value = 3.543e-15
 # alternative hypothesis: true difference in means is not equal to 0
 # 95 percent confidence interval:
-#  -0.01221518 -0.01036947
+#   -0.004598602 -0.002765914
 # sample estimates:
-# mean of x mean of y 
-# 0.1252292 0.1365215 
+#   mean of x mean of y 
+# 0.1264471 0.1301294 
 
 t.test(bmain$indirect_NonCog, bmain$indirect_Cog)
-# 	Welch Two Sample t-test
+# Welch Two Sample t-test
 # 
 # data:  bmain$indirect_NonCog and bmain$indirect_Cog
-# t = 87.704, df = 19984, p-value < 2.2e-16
+# t = 92.831, df = 19972, p-value < 2.2e-16
 # alternative hypothesis: true difference in means is not equal to 0
 # 95 percent confidence interval:
-#  0.04347229 0.04545982
+#   0.04618485 0.04817727
 # sample estimates:
-# mean of x mean of y 
-# 0.1696953 0.1252292 
+#   mean of x mean of y 
+# 0.1736282 0.1264471 
 
 t.test(bmain$ratio_NonCog, bmain$ratio_Cog)
-# 	Welch Two Sample t-test
+# Welch Two Sample t-test
 # 
 # data:  bmain$ratio_NonCog and bmain$ratio_Cog
-# t = 34.219, df = 11381, p-value < 2.2e-16
+# t = 22.071, df = 10319, p-value < 2.2e-16
 # alternative hypothesis: true difference in means is not equal to 0
 # 95 percent confidence interval:
-#  0.7836599 0.8788965
+#   1.061719 1.268691
 # sample estimates:
-# mean of x mean of y 
-#  1.869414  1.038136 
+#   mean of x mean of y 
+# 2.272622  1.107417 
 
 t.test(bmain$ratio_tot_NonCog, bmain$ratio_tot_Cog)
-# 	Welch Two Sample t-test
+# Welch Two Sample t-test
 # 
 # data:  bmain$ratio_tot_NonCog and bmain$ratio_tot_Cog
-# t = 77.776, df = 19931, p-value < 2.2e-16
+# t = 86.367, df = 19979, p-value < 2.2e-16
 # alternative hypothesis: true difference in means is not equal to 0
 # 95 percent confidence interval:
-#  0.1292206 0.1359021
+#   0.1470326 0.1538613
 # sample estimates:
-# mean of x mean of y 
-# 0.6087715 0.4762102 
-
-# Get CI of all 
-meanall <- apply(bmain, 2, mean)
-sdall <- apply(bmain, 2, sd)
-n <- nboot
-error <- qnorm(0.975)*sdall/sqrt(n)
-leftCI <- meanall-error
-rightCI <- meanall+error
-
-tot <- rbind(meanall, sdall, error, leftCI, rightCI)
-#         direct_NonCog  direct_Cog total_NonCog    total_Cog indirect_NonCog indirect_Cog ratio_NonCog  ratio_Cog
-# meanall  0.1082671479 0.136521536 0.2779624138 0.2617507461    0.1696952659 0.1252292101   1.86941398 1.03813577
-# sdall    0.0314173948 0.031066743 0.0177187112 0.0175320353    0.0363165649 0.0353783351   2.34912323 0.61893200
-# error    0.0006157696 0.000608897 0.0003472804 0.0003436216    0.0007117916 0.0006934026   0.04604197 0.01213084
-# leftCI   0.1076513783 0.135912639 0.2776151334 0.2614071246    0.1689834743 0.1245358074   1.82337201 1.02600493
-# rightCI  0.1088829175 0.137130433 0.2783096941 0.2620943677    0.1704070575 0.1259226127   1.91545595 1.05026662
-#         ratio_tot_NonCog ratio_tot_Cog
-# meanall      0.608771515   0.476210164
-# sdall        0.116972301   0.123963847
-# error        0.002292615   0.002429647
-# leftCI       0.606478900   0.473780517
-# rightCI      0.611064130   0.478639811
-
-write.table(tot, "summary_mean_CI_siblings_NTR_EA_2020429.csv", row.names=T, quote=F)
+#   mean of x mean of y 
+# 0.6408777 0.4904307 
+# 
 
 # * 2.3 Siblings analyses with CITO ==============================
 #* * 2.3.1 Clean data and scale variables -----
-datasibcito <- datasib[!is.na(datasib$cito_final),] #1851
+datasibcito <- datasib[!is.na(datasib$cito_final),] #1850
 
 # Process again to exclude individual without sib 
 number <- as.data.frame(table(datasibcito$FamilyNumber))
-onemember <- number[which(number$Freq == 1),] #identify family with only one member in this data #222
+onemember <- number[which(number$Freq == 1),] #identify family with only one member in this data #219
 head(onemember)
 list <- onemember$Var1 
-datasibcito <- datasibcito[!which(datasibcito$FamilyNumber %in% list), ] #1629
+datasibcito <- datasibcito[!which(datasibcito$FamilyNumber %in% list), ] #1631
 head(datasibcito)
 
 finalsib <- as.data.frame(datasibcito)
 
-summary(is.na(finalsib$cito_final))  #1629: final sample size
+summary(is.na(finalsib$cito_final))  #1631: final sample size
 
 
 # scale variables
@@ -448,8 +458,8 @@ hist(finalsib$SCORE.Cog)
 hist(finalsib$scoreCog_sc)
 
 # save data
-write.table(finalsib, "Data_siblings_NTR_CITO_20200430.csv", row.names=F, quote=F)
-finalsib <- fread("Data_siblings_NTR_CITO_20200430.csv")
+#write.table(finalsib, "Data_siblings_NTR_CITO_20200511.csv", row.names=F, quote=F)
+#finalsib <- fread("Data_siblings_NTR_CITO_20200511.csv")
 
 # * * 2.3.2 Simple linear model -----
 
@@ -479,30 +489,31 @@ summary(final)
 # Extract estimates 
 names(summary(final))
 summary(final)$tTable
-#                   Value Std.Error  DF   t-value p-value
-# (Intercept)    16.33028  42.99540 857  0.379815  0.7042
-# GPS_B_NonCog    0.17335   0.03410 753  5.083048  0.0000
-# GPS_B_Cog       0.31725   0.03385 753  9.371423  0.0000
-# GPS_W_NonCog    0.17727   0.03794 857  4.672696  0.0000
-# GPS_W_Cog       0.23336   0.03877 857  6.019014  0.0000
-write.table(summary(final)$tTable, "Estimates_Siblings_NTR_CITO_20200501.csv", quote=F )
+# Value    Std.Error  DF     t-value      p-value
+# (Intercept)   1.416429e+01  42.93422408 858  0.32990677 7.415509e-01
+# GPS_B_NonCog  1.759328e-01   0.03406690 754  5.16433315 3.090748e-07
+# GPS_B_Cog     3.212078e-01   0.03382041 754  9.49745298 2.772288e-20
+# GPS_W_NonCog  1.845122e-01   0.03782887 858  4.87754932 1.280036e-06
+# GPS_W_Cog     2.326259e-01   0.03866158 858  6.01697913 2.629687e-09
+
+#write.table(summary(final)$tTable, "Estimates_Siblings_NTR_CITO_20200511.csv", quote=F )
 
 
 direct_NonCog <- summary(final)$tTable[4,1]# direct effect is beta within 
 direct_Cog <- summary(final)$tTable[5,1]
 total_NonCog <- summary(final)$tTable[2,1] # total is beta between 
 total_Cog <- summary(final)$tTable[3,1]
-indirect_NonCog <- total_NonCog - direct_NonCog #- 0.003914381
-indirect_Cog <- total_Cog - direct_Cog #0.08388637
-ratio_NonCog <- indirect_NonCog/direct_NonCog  #-0.0220817
-ratio_Cog <- indirect_Cog/direct_Cog  #0.359468
-ratio_tot_NonCog <- indirect_NonCog/total_NonCog #-0.02258031
-ratio_tot_Cog <- indirect_Cog/total_Cog #0.2644181
+indirect_NonCog <- total_NonCog - direct_NonCog 
+indirect_Cog <- total_Cog - direct_Cog 
+ratio_NonCog <- indirect_NonCog/direct_NonCog  
+ratio_Cog <- indirect_Cog/direct_Cog  
+ratio_tot_NonCog <- indirect_NonCog/total_NonCog
+ratio_tot_Cog <- indirect_Cog/total_Cog 
 
 # * * 2.3.5 Bootstrapping ------------
 nboot <- 10000
 bootcoef<-function(data,index){
-  datx<-finalsib[index,]
+  datx<-data[index,]
   mod<-lme(CITO_sc~GPS_B_NonCog + GPS_B_Cog + GPS_W_NonCog + GPS_W_Cog + 
                sex + yob + sex*yob +
                Platform + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, random=~1|FamilyNumber, method="ML", na.action=na.omit, data=datx, control=lmeControl(opt = "optim"))
@@ -512,9 +523,10 @@ bootcoef<-function(data,index){
 # carry out bootstrap
 boot.out<-boot(finalsib,bootcoef,nboot, parallel = "multicore", ncpus=20) 
 
+#saveRDS(boot.out, "bootstrapped_output_siblings_NTR_CITO_20200511.Rda")
 
 #plot to check bootstrapping
-png("NTR.sib.CITO.bootstrap.png",
+png("NTR.sib.CITO.bootstrap_20200511.png",
     width = 10,
     height = 6,
     units = 'in',
@@ -522,118 +534,116 @@ png("NTR.sib.CITO.bootstrap.png",
 plot(boot.out)
 dev.off()
 
-# get CI 
-boot.ci(boot.out, type = c("norm", "basic"))
-# Intervals : 
-# Level      Normal              Basic         
-# 95%   (-84.83,  94.75 )   (-83.70,  96.74 )  
-# Calculations and Intervals on Original Scale
-
+#Save t output of boot
 bootoutput <- as.data.frame(boot.out$t)
 colnames(bootoutput) <- rownames(as.data.frame(boot.out$t0))
-write.table(bootoutput, "Data_scores_siblings_NTR_CITO_bootstrapped_20200430.csv", row.names=F, quote=F)
+head(bootoutput)
+#write.table(bootoutput, "Data_scores_siblings_NTR_CITO_bootstrapped_20200511.csv", row.names=F, quote=F)
 
-bmain <- bootoutput[,2:5] #save variables of interest
-head(bmain)
+# get values out of boot.out for all estimates + create indirect and ratio estimates
+original <- as.data.frame(t(boot.out$t0)) # estimates of the original sample #best estimates of the effects
 
+original$direct_NonCog <- original$GPS_W_NonCog
+original$direct_Cog <- original$GPS_W_Cog
+original$total_NonCog <- original$GPS_B_NonCog
+original$total_Cog <- original$GPS_B_Cog
+original$indirect_NonCog <- original$total_NonCog - original$direct_NonCog
+original$indirect_Cog <- original$total_Cog - original$direct_Cog
+original$ratio_NonCog <- original$indirect_NonCog / original$direct_NonCog
+original$ratio_Cog <- original$indirect_Cog / original$direct_Cog
+original$ratio_tot_NonCog <- original$indirect_NonCog / original$total_NonCog
+original$ratio_tot_Cog <- original$indirect_Cog / original$total_Cog
 
-# Create indirect and ratio variables
-bmain$direct_NonCog <- bmain$GPS_W_NonCog
-bmain$direct_Cog <- bmain$GPS_W_Cog
-bmain$total_NonCog <- bmain$GPS_B_NonCog
-bmain$total_Cog <- bmain$GPS_B_Cog
-bmain$indirect_NonCog <- bmain$total_NonCog - bmain$direct_NonCog
-bmain$indirect_Cog <- bmain$total_Cog - bmain$direct_Cog
-bmain$ratio_NonCog <- bmain$indirect_NonCog / bmain$direct_NonCog
-bmain$ratio_Cog <- bmain$indirect_Cog / bmain$direct_Cog
-bmain$ratio_tot_NonCog <- bmain$indirect_NonCog / bmain$total_NonCog
-bmain$ratio_tot_Cog <- bmain$indirect_Cog / bmain$total_Cog
-bmain <- bmain[,5:14]
-write.table(bmain, "Data_scores_siblings_NTR_CITO_bootstrapped_ratio_20200430.csv", row.names=F, quote=F)
+bootoutput$direct_NonCog <- bootoutput$GPS_W_NonCog
+bootoutput$direct_Cog <- bootoutput$GPS_W_Cog
+bootoutput$total_NonCog <- bootoutput$GPS_B_NonCog
+bootoutput$total_Cog <- bootoutput$GPS_B_Cog
+bootoutput$indirect_NonCog <- bootoutput$total_NonCog - bootoutput$direct_NonCog
+bootoutput$indirect_Cog <- bootoutput$total_Cog - bootoutput$direct_Cog
+bootoutput$ratio_NonCog <- bootoutput$indirect_NonCog / bootoutput$direct_NonCog
+bootoutput$ratio_Cog <- bootoutput$indirect_Cog / bootoutput$direct_Cog
+bootoutput$ratio_tot_NonCog <- bootoutput$indirect_NonCog / bootoutput$total_NonCog
+bootoutput$ratio_tot_Cog <- bootoutput$indirect_Cog / bootoutput$total_Cog
+
+mean <- apply(bootoutput, 2, mean) # mean of the estimates of the bootstrap resamples
+bias <- mean - original
+se <- apply(bootoutput, 2, sd) #the standard deviation of the bootstrap estimates is the standard error of the sample estimates
+
+error <- qnorm(0.975)*se
+leftCI <- original - bias - error # normal Ci from boot.ci 
+rightCI <- original - bias + error
+
+statsoutput <- rbind(original, mean, bias, se, error, leftCI, rightCI)
+statsoutput$Estimates <- c('original', 'mean', 'bias', 'se', 'error', 'leftCI', 'rightCI')
+statsoutput
+tot <- statsoutput[,c(ncol(statsoutput), 1:(ncol(statsoutput)-1))]
+tot
+
+#write.table(tot, "summary_mean_CI_siblings_NTR_CITO_20200511.csv", row.names=T, quote=F)
+
+bmain <- bootoutput
 
 #Perform  t-tests
 t.test(bmain$indirect_NonCog, bmain$direct_NonCog)
-# 	Welch Two Sample t-test
+# Welch Two Sample t-test
 # 
 # data:  bmain$indirect_NonCog and bmain$direct_NonCog
-# t = -293.35, df = 19739, p-value < 2.2e-16
+# t = -317.14, df = 19761, p-value < 2.2e-16
 # alternative hypothesis: true difference in means is not equal to 0
 # 95 percent confidence interval:
-#  -0.1883413 -0.1858411
-# sample estimates:
-#    mean of x    mean of y 
-# -0.005805308  0.181285872 
-
-t.test(bmain$indirect_Cog, bmain$direct_Cog)
-# data:  bmain$indirect_Cog and bmain$direct_Cog
-# t = -229.13, df = 19722, p-value < 2.2e-16
-# alternative hypothesis: true difference in means is not equal to 0
-# 95 percent confidence interval:
-#  -0.1491094 -0.1465799
-# sample estimates:
-#  mean of x  mean of y 
-# 0.08715159 0.23499623 
-
-t.test(bmain$indirect_NonCog, bmain$indirect_Cog)
-# 	Welch Two Sample t-test
-# 
-# data:  bmain$indirect_NonCog and bmain$indirect_Cog
-# t = -137.14, df = 19994, p-value < 2.2e-16
-# alternative hypothesis: true difference in means is not equal to 0
-# 95 percent confidence interval:
-#  -0.09428551 -0.09162830
-# sample estimates:
-#    mean of x    mean of y 
-# -0.005805308  0.087151593 
-
-t.test(bmain$ratio_NonCog, bmain$ratio_Cog)
-# 	Welch Two Sample t-test
-# 
-# data:  bmain$ratio_NonCog and bmain$ratio_Cog
-# t = -85.946, df = 19865, p-value < 2.2e-16
-# alternative hypothesis: true difference in means is not equal to 0
-# 95 percent confidence interval:
-#  -0.3984510 -0.3806821
-# sample estimates:
-#  mean of x  mean of y 
-# 0.03212295 0.42168947 
-
-t.test(bmain$ratio_tot_NonCog, bmain$ratio_tot_Cog)
-# 	Welch Two Sample t-test
-# 
-# data:  bmain$ratio_tot_NonCog and bmain$ratio_tot_Cog
-# t = -99.888, df = 14811, p-value < 2.2e-16
-# alternative hypothesis: true difference in means is not equal to 0
-# 95 percent confidence interval:
-#  -0.3233772 -0.3109301
+#   -0.1990520 -0.1966066
 # sample estimates:
 #   mean of x   mean of y 
-# -0.05012655  0.26702711 
+# -0.01000833  0.18782097 
 
+t.test(bmain$indirect_Cog, bmain$direct_Cog)
+# Welch Two Sample t-test
+# 
+# data:  bmain$indirect_Cog and bmain$direct_Cog
+# t = -216.25, df = 19731, p-value < 2.2e-16
+# alternative hypothesis: true difference in means is not equal to 0
+# 95 percent confidence interval:
+#   -0.1427061 -0.1401424
+# sample estimates:
+#   mean of x  mean of y 
+# 0.09224501 0.23366928 
 
-# Get CI of all 
-meanall <- apply(bmain, 2, mean)
-sdall <- apply(bmain, 2, sd)
-n <- nboot
-error <- qnorm(0.975)*sdall/sqrt(n)
-leftCI <- meanall-error
-rightCI <- meanall+error
+t.test(bmain$indirect_NonCog, bmain$indirect_Cog)
+# Welch Two Sample t-test
+# 
+# data:  bmain$indirect_NonCog and bmain$indirect_Cog
+# t = -151.66, df = 19947, p-value < 2.2e-16
+# alternative hypothesis: true difference in means is not equal to 0
+# 95 percent confidence interval:
+#   -0.1035749 -0.1009318
+# sample estimates:
+#   mean of x   mean of y 
+# -0.01000833  0.09224501 
 
-tot <- rbind(meanall, sdall, error, leftCI, rightCI)
-#         direct_NonCog   direct_Cog total_NonCog    total_Cog indirect_NonCog indirect_Cog ratio_NonCog   ratio_Cog
-# meanall  0.1812858722 0.2349962332 0.1754805641 0.3221478257    -0.005805308 0.0871515925   0.03212295 0.421689472
-# sdall    0.0424346118 0.0428436392 0.0223781997 0.0220291433     0.047610316 0.0482473182   0.33334696 0.307135712
-# error    0.0008317031 0.0008397199 0.0004386047 0.0004317633     0.000933145 0.0009456301   0.00653348 0.006019749
-# leftCI   0.1804541691 0.2341565133 0.1750419594 0.3217160624    -0.006738453 0.0862059625   0.02558947 0.415669722
-# rightCI  0.1821175753 0.2358359531 0.1759191687 0.3225795890    -0.004872163 0.0880972226   0.03865643 0.427709221
-#         ratio_tot_NonCog ratio_tot_Cog
-# meanall     -0.050126550   0.267027111
-# sdall        0.283259592   0.143444329
-# error        0.005551786   0.002811457
-# leftCI      -0.055678336   0.264215654
-# rightCI     -0.044574764   0.269838568
+t.test(bmain$ratio_NonCog, bmain$ratio_Cog)
+# Welch Two Sample t-test
+# 
+# data:  bmain$ratio_NonCog and bmain$ratio_Cog
+# t = -102.86, df = 19844, p-value < 2.2e-16
+# alternative hypothesis: true difference in means is not equal to 0
+# 95 percent confidence interval:
+#   -0.4567869 -0.4397035
+# sample estimates:
+#   mean of x    mean of y 
+# 0.0008019466 0.4490471871 
 
-write.table(tot, "summary_mean_CI_siblings_NTR_CITO_20200430.csv", row.names=T, quote=F)
+t.test(bmain$ratio_tot_NonCog, bmain$ratio_tot_Cog)
+# Welch Two Sample t-test
+# 
+# data:  bmain$ratio_tot_NonCog and bmain$ratio_tot_Cog
+# t = -113.37, df = 15063, p-value < 2.2e-16
+# alternative hypothesis: true difference in means is not equal to 0
+# 95 percent confidence interval:
+#   -0.3586261 -0.3464354
+# sample estimates:
+#   mean of x   mean of y 
+# -0.07288037  0.27965037 
+
 
 # 3.  Trios analyses #####################################
 # * 3.1 Clean data for trios analyses ===============================
@@ -719,8 +729,8 @@ hist(datatrios$SCORE.Nontrans.Cog_sc)
 datatrios <- datatrios[order(datatrios$FamilyNumber),] 
 
 # Save data trios
-#write.table(datatrios, "Data_trios_NTR_20200430.csv", row.names=F, quote=F)
-#datatrios <- fread("Data_trios_NTR_20200430.csv", header=T, colClasses=c("FISNumber"="character"))
+#write.table(datatrios, "Data_trios_NTR_20200511.csv", row.names=F, quote=F)
+#datatrios <- fread("Data_trios_NTR_20200511.csv", header=T, colClasses=c("FISNumber"="character"))
 #str(datatrios)
 
 # * 3.2 Trios analyses with EA =========
@@ -729,37 +739,23 @@ hist(datatrios$EA_sc)
 
 datatriosEA <- datatrios[!is.na(datatrios$EA_sc),]
 
-# * * 3.2.1 Analyses with PGS from both parents pulled together -------
+# * * 3.2.1 Analyses EA with PGS from both parents pulled together -------
 
-# With gee: might lead to issues when bootstrapping 
-# EA_bothparents <- gee(EA_sc ~ SCORE.Nontrans.Cog_sc + SCORE.Nontrans.NonCog_sc + SCORE.Trans.Cog_sc + SCORE.Trans.NonCog_sc +
-#               sex + yob + sex*yob + 
-#               Platform + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, id = FamilyNumber, data=datatrios, corstr = "exchangeable")
-# 
-# summary(EA_bothparents)
-# EA_bothparents_coef <- as.data.frame(summary(EA_bothparents)$coef)
-# head(EA_bothparents_coef)
-# colnames(EA_bothparents_coef) <- c("Estimate", "naive_SE", "naive_Z", "robust_SE", "robust_Z")
-# EA_bothparents_coef$Pval <- 2*pnorm(-abs(EA_bothparents_coef$robust_Z))
-# #                              Estimate    naive_SE    naive_Z   robust_SE   robust_Z         Pval
-# # (Intercept)              -12.21069663 18.57714156 -0.6572969 20.44943695 -0.5971165 5.504296e-01
-# # SCORE.Nontrans.Cog_sc      0.08353486  0.01570860  5.3177779  0.01579574  5.2884430 1.233620e-07
-# # SCORE.Nontrans.NonCog_sc   0.08391856  0.01616183  5.1923932  0.01672194  5.0184689 5.208491e-07
-# # SCORE.Trans.Cog_sc         0.15818493  0.01581062 10.0049768  0.01552264 10.1905973 2.184180e-24
-# # SCORE.Trans.NonCog_sc      0.14257480  0.01571810  9.0707429  0.01606072  8.8772364 6.854205e-19
-# 
-# 
-# # Extract estimates 
-# total_NonCog <- EA_bothparents_coef[5,1] # total is transmitted
-# total_Cog <- EA_bothparents_coef[4,1]
-# indirect_NonCog <- EA_bothparents_coef[3,1] #indirect is nontransmitted
-# indirect_Cog <- EA_bothparents_coef[2,1]
-# direct_NonCog <- total_NonCog - indirect_NonCog #0.05865624
-# direct_Cog <- total_Cog - indirect_Cog #0.07465008
-# ratio_NonCog <- indirect_NonCog/direct_NonCog  #1.430684
-# ratio_Cog <- indirect_Cog/direct_Cog  #1.119019
-# ratio_tot_NonCog <- indirect_NonCog/total_NonCog #0.5885932
-# ratio_tot_Cog <- indirect_Cog/total_Cog #0.5280835
+#With gee: might lead to issues when bootstrapping
+EA_bothparents <- gee(EA_sc ~ SCORE.Nontrans.Cog_sc + SCORE.Nontrans.NonCog_sc + SCORE.Trans.Cog_sc + SCORE.Trans.NonCog_sc +
+             sex + yob + sex*yob +
+             Platform + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, id = FamilyNumber, data=datatrios, corstr = "exchangeable")
+summary(EA_bothparents)
+EA_bothparents_coef <- as.data.frame(summary(EA_bothparents)$coef)
+head(EA_bothparents_coef)
+colnames(EA_bothparents_coef) <- c("Estimate", "naive_SE", "naive_Z", "robust_SE", "robust_Z")
+EA_bothparents_coef$Pval <- 2*pnorm(-abs(EA_bothparents_coef$robust_Z))
+#                             Estimate    naive_SE    naive_Z   robust_SE   robust_Z         Pval
+# (Intercept)              -12.21069663 18.57714156 -0.6572969 20.44943695 -0.5971165 5.504296e-01
+# SCORE.Nontrans.Cog_sc      0.08353486  0.01570860  5.3177779  0.01579574  5.2884430 1.233620e-07
+# SCORE.Nontrans.NonCog_sc   0.08391856  0.01616183  5.1923932  0.01672194  5.0184689 5.208491e-07
+# SCORE.Trans.Cog_sc         0.15818493  0.01581062 10.0049768  0.01552264 10.1905973 2.184180e-24
+# SCORE.Trans.NonCog_sc      0.14257480  0.01571810  9.0707429  0.01606072  8.8772364 6.854205e-19
 
 
 # With lme 
@@ -767,31 +763,16 @@ EA_bothparents_lme <- lme(EA_sc ~ SCORE.Nontrans.Cog_sc + SCORE.Nontrans.NonCog_
                             sex + yob + sex*yob + 
                             Platform + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, random=~1|FamilyNumber, method="ML", na.action=na.omit, data=datatriosEA)
 
-# Extract estimates 
 
 EA_bothparents_coef <- summary(EA_bothparents_lme)$tTable
 # Value    Std.Error   DF    t-value      p-value
-# (Intercept)              -11.772613691 1.854943e+01 1253 -0.6346617 5.257649e-01
+# (Intercept)              -11.772613610 1.854943e+01 1253 -0.6346617 5.257649e-01
 # SCORE.Nontrans.Cog_sc      0.083633521 1.576822e-02  935  5.3039285 1.415182e-07
 # SCORE.Nontrans.NonCog_sc   0.083983778 1.622382e-02  935  5.1765731 2.766792e-07
-# SCORE.Trans.Cog_sc         0.158383632 1.587046e-02  935  9.9797773 2.341669e-22
+# SCORE.Trans.Cog_sc         0.158383632 1.587046e-02  935  9.9797772 2.341669e-22
 # SCORE.Trans.NonCog_sc      0.142455775 1.577912e-02  935  9.0281204 9.762234e-19
-# sex                      -11.402430101 1.032674e+01  935 -1.1041653 2.698055e-01
-# yob                        0.006218973 9.323855e-03  935  0.6669959 5.049393e-01
-# Platform                  -0.015858136 1.028448e-02  935 -1.5419481 1.234246e-01
-# PC1                      -26.955376465 1.102013e+02  935 -0.2446013 8.068189e-01
-# PC2                       14.859082155 5.606952e+01  935  0.2650118 7.910588e-01
-# PC3                       -9.697984835 3.626914e+01  935 -0.2673894 7.892283e-01
-# PC4                       28.527360194 3.172429e+01  935  0.8992278 3.687629e-01
-# PC5                        3.579629973 8.501116e+00  935  0.4210777 6.737952e-01
-# PC6                       -2.853055113 1.684066e+01  935 -0.1694147 8.655071e-01
-# PC7                        8.900582981 1.556831e+01  935  0.5717115 5.676549e-01
-# PC8                       22.418600236 1.332097e+01  935  1.6829551 9.271762e-02
-# PC9                       -1.347515560 1.070564e+01  935 -0.1258697 8.998622e-01
-# PC10                      -5.354564703 7.865695e+00  935 -0.6807491 4.961988e-01
-# sex:yob                    0.005743111 5.222603e-03  935  1.0996644 2.717614e-01
 
-write.table(EA_bothparents_coef, "Estimates_Trios_NTR_EA_20200501.csv", quote=F )
+#write.table(EA_bothparents_coef, "Estimates_Trios_NTR_EA_20200511.csv", quote=F )
 
 total_NonCog <- EA_bothparents_coef[5,1] # total is transmitted
 total_Cog <- EA_bothparents_coef[4,1]
@@ -807,8 +788,9 @@ ratio_tot_Cog <- indirect_Cog/total_Cog #0.528044
 
 # * * * 3.2.1.1 Bootstrapping ------
 nboot <- 10000
+# gee doesn't always converge when bootstrapping
 # bootcoef<-function(data,index){
-#   datx<-datatrios[index,]
+#   datx<-data[index,]
 #   mod<-gee(EA_sc ~ SCORE.Nontrans.Cog_sc + SCORE.Nontrans.NonCog_sc + SCORE.Trans.Cog_sc + SCORE.Trans.NonCog_sc +
 #               sex + yob + sex*yob + 
 #               Platform + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, id = FamilyNumber, data=datx, corstr = "exchangeable")  
@@ -823,9 +805,10 @@ bootcoef<-function(data,index){
   fixef(mod) #get fixed effects
 }
 
-boot.out<-boot(datatriosEA,bootcoef,nboot, parallel = "multicore", ncpus=20) 
-head(boot.out)
+boot.out<-boot(datatriosEA, bootcoef, nboot, parallel = "multicore", ncpus=20) 
+boot.out
 
+saveRDS(boot.out, "bootstrapped_output_trios_NTR_EA_20200511.Rda")
 
 #plot to check bootstrapping
 png("NTR.trios.EA.bootstrap_lme.png",
@@ -836,59 +819,115 @@ png("NTR.trios.EA.bootstrap_lme.png",
 plot(boot.out)
 dev.off()
 
-# get CI 
-boot.ci(boot.out, type = c("norm", "basic"))
-# Intervals with gee: 
-# Level      Normal              Basic         
-# 95%   (-43.23,  33.70 )   (-43.72,  33.49 )  
-
-# Intervals : 
-#   Level      Normal              Basic         
-# 95%   (-61.86,  23.97 )   (-61.50,  23.54 )  
-
+#Save t output of boot
 bootoutput <- as.data.frame(boot.out$t)
 colnames(bootoutput) <- rownames(as.data.frame(boot.out$t0))
-#write.table(bootoutput, "Data_scores_trios_NTR_EA_bootstrapped_20200430.csv", row.names=F, quote=F)
-write.table(bootoutput, "Data_scores_trios_NTR_EA_bootstrapped_20200501.csv", row.names=F, quote=F)
+head(bootoutput)
+#write.table(bootoutput, "Data_scores_trios_NTR_EA_bootstrapped_20200511.csv", row.names=F, quote=F)
 
+# get values out of boot.out for all estimates + create direct and ratio estimates
+original <- as.data.frame(t(boot.out$t0)) # estimates of the original sample #best estimates of the effects
 
-bmain <- bootoutput[,2:5] #save variables of interest
-head(bmain)
+original$total_NonCog <- original$SCORE.Trans.NonCog_sc
+original$total_Cog <- original$SCORE.Trans.Cog_sc
+original$indirect_NonCog <- original$SCORE.Nontrans.NonCog_sc
+original$indirect_Cog <- original$SCORE.Nontrans.Cog_sc
+original$direct_NonCog <- original$total_NonCog - original$indirect_NonCog
+original$direct_Cog <- original$total_Cog - original$indirect_Cog
+original$ratio_NonCog <- original$indirect_NonCog / original$direct_NonCog
+original$ratio_Cog <- original$indirect_Cog / original$direct_Cog
+original$ratio_tot_NonCog <- original$indirect_NonCog / original$total_NonCog
+original$ratio_tot_Cog <- original$indirect_Cog / original$total_Cog
 
-# Create direct and ratio variables
-bmain$total_NonCog <- bmain$SCORE.Trans.NonCog_sc
-bmain$total_Cog <- bmain$SCORE.Trans.Cog_sc
-bmain$indirect_NonCog <- bmain$SCORE.Nontrans.NonCog_sc
-bmain$indirect_Cog <- bmain$SCORE.Nontrans.Cog_sc
-bmain$direct_NonCog <- bmain$total_NonCog - bmain$indirect_NonCog
-bmain$direct_Cog <- bmain$total_Cog - bmain$indirect_Cog
-bmain$ratio_NonCog <- bmain$indirect_NonCog / bmain$direct_NonCog
-bmain$ratio_Cog <- bmain$indirect_Cog / bmain$direct_Cog
-bmain$ratio_tot_NonCog <- bmain$indirect_NonCog / bmain$total_NonCog
-bmain$ratio_tot_Cog <- bmain$indirect_Cog / bmain$total_Cog
-bmain <- bmain[,5:14]
+bootoutput$total_NonCog <- bootoutput$SCORE.Trans.NonCog_sc
+bootoutput$total_Cog <- bootoutput$SCORE.Trans.Cog_sc
+bootoutput$indirect_NonCog <- bootoutput$SCORE.Nontrans.NonCog_sc
+bootoutput$indirect_Cog <- bootoutput$SCORE.Nontrans.Cog_sc
+bootoutput$direct_NonCog <- bootoutput$total_NonCog - bootoutput$indirect_NonCog
+bootoutput$direct_Cog <- bootoutput$total_Cog - bootoutput$indirect_Cog
+bootoutput$ratio_NonCog <- bootoutput$indirect_NonCog / bootoutput$direct_NonCog
+bootoutput$ratio_Cog <- bootoutput$indirect_Cog / bootoutput$direct_Cog
+bootoutput$ratio_tot_NonCog <- bootoutput$indirect_NonCog / bootoutput$total_NonCog
+bootoutput$ratio_tot_Cog <- bootoutput$indirect_Cog / bootoutput$total_Cog
 
-#write.table(bmain, "Data_scores_trios_NTR_EA_bootstrapped_ratio_20200430.csv", row.names=F, quote=F)
-write.table(bmain, "Data_scores_trios_NTR_EA_bootstrapped_ratio_20200501.csv", row.names=F, quote=F)
+mean <- apply(bootoutput, 2, mean) # mean of the estimates of the bootstrap resamples
+bias <- mean - original
+se <- apply(bootoutput, 2, sd) #the standard deviation of the bootstrap estimates is the standard error of the sample estimates
 
-# Get CI of all 
-meanall <- apply(bmain, 2, mean)
-sdall <- apply(bmain, 2, sd)
-n <- nboot
-error <- qnorm(0.975)*sdall/sqrt(n)
-leftCI <- meanall-error
-rightCI <- meanall+error
+error <- qnorm(0.975)*se
+leftCI <- original - bias - error # normal Ci from boot.ci 
+rightCI <- original - bias + error
 
-tot <- rbind(meanall, sdall, error, leftCI, rightCI)
-# total_NonCog   total_Cog indirect_NonCog indirect_Cog direct_NonCog   direct_Cog ratio_NonCog ratio_Cog ratio_tot_NonCog ratio_tot_Cog
-# meanall 0.1427658660 0.158462921    0.0848940274 0.0845116680   0.057871839 0.0739512529     2.326123 1.4675715      0.606917266   0.541910532
-# sdall   0.0152555048 0.015046040    0.0154951208 0.0145911894   0.026029816 0.0248108570    56.223616 3.5681933      0.153429948   0.125143465
-# error   0.0002990024 0.000294897    0.0003036988 0.0002859821   0.000510175 0.0004862839     1.101963 0.0699353      0.003007172   0.002452767
-# leftCI  0.1424668637 0.158168024    0.0845903286 0.0842256860   0.057361664 0.0734649691     1.224160 1.3976362      0.603910094   0.539457765
-# rightCI 0.1430648684 0.158757818    0.0851977262 0.0847976501   0.058382014 0.0744375368     3.428085 1.5375068      0.609924438   0.544363299
+statsoutput <- rbind(original, mean, bias, se, error, leftCI, rightCI)
+statsoutput$Estimates <- c('original', 'mean', 'bias', 'se', 'error', 'leftCI', 'rightCI')
+statsoutput
+tot <- statsoutput[,c(ncol(statsoutput), 1:(ncol(statsoutput)-1))]
+tot
 
-#write.table(tot, "summary_mean_CI_trios_NTR_EA_20200430.csv", row.names=T, quote=F)
-write.table(tot, "summary_mean_CI_trios_NTR_EA_20200501.csv", row.names=T, quote=F)
+write.table(tot, "summary_mean_CI_trios_NTR_EA_20200511.csv", row.names=T, quote=F)
+bmain <- bootoutput
+
+#Perform  t-tests
+t.test(bmain$indirect_NonCog, bmain$direct_NonCog)
+# Welch Two Sample t-test
+# 
+# data:  bmain$indirect_NonCog and bmain$direct_NonCog
+# t = 88.786, df = 16408, p-value < 2.2e-16
+# alternative hypothesis: true difference in means is not equal to 0
+# 95 percent confidence interval:
+#   0.02622384 0.02740786
+# sample estimates:
+#   mean of x  mean of y 
+# 0.08471725 0.05790140 
+
+t.test(bmain$indirect_Cog, bmain$direct_Cog)
+# Welch Two Sample t-test
+# 
+# data:  bmain$indirect_Cog and bmain$direct_Cog
+# t = 37.294, df = 16189, p-value < 2.2e-16
+# alternative hypothesis: true difference in means is not equal to 0
+# 95 percent confidence interval:
+#   0.01004722 0.01116195
+# sample estimates:
+#   mean of x  mean of y 
+# 0.08448657 0.07388199 
+
+t.test(bmain$indirect_NonCog, bmain$indirect_Cog)
+# Welch Two Sample t-test
+# 
+# data:  bmain$indirect_NonCog and bmain$indirect_Cog
+# t = 1.0863, df = 19881, p-value = 0.2774
+# alternative hypothesis: true difference in means is not equal to 0
+# 95 percent confidence interval:
+#   -0.0001855639  0.0006469130
+# sample estimates:
+#   mean of x  mean of y 
+# 0.08471725 0.08448657 
+
+t.test(bmain$ratio_NonCog, bmain$ratio_Cog)
+# Welch Two Sample t-test
+# 
+# data:  bmain$ratio_NonCog and bmain$ratio_Cog
+# t = 2.4037, df = 10116, p-value = 0.01625
+# alternative hypothesis: true difference in means is not equal to 0
+# 95 percent confidence interval:
+#   0.1414117 1.3913488
+# sample estimates:
+#   mean of x mean of y 
+# 2.207711  1.441331  
+
+t.test(bmain$ratio_tot_NonCog, bmain$ratio_tot_Cog)
+# Welch Two Sample t-test
+# 
+# data:  bmain$ratio_tot_NonCog and bmain$ratio_tot_Cog
+# t = 32.768, df = 19155, p-value < 2.2e-16
+# alternative hypothesis: true difference in means is not equal to 0
+# 95 percent confidence interval:
+#   0.06032857 0.06800511
+# sample estimates:
+#   mean of x mean of y 
+# 0.6059586 0.5417918
+
 
 
 # * * 3.2.2 Difference between parents -----
@@ -900,87 +939,66 @@ summary(lm(EA_sc ~ SCORE.Nontrans.Dad.Cog_sc + SCORE.Nontrans.Mom.Cog_sc + SCORE
 summary(is.na(datatrios$CITO_sc)) # data for 1526
 
 datatriosCITO <- datatrios[!is.na(datatrios$CITO_sc),]
+datatriosCITO <- datatriosCITO[order(datatriosCITO$FamilyNumber),] 
 
-# * * 3.3.1 Analyses with PGS from both parents pulled together -------
-#with gee
-# CITO_bothparents <- gee(CITO_sc ~ SCORE.Nontrans.Cog_sc + SCORE.Nontrans.NonCog_sc + SCORE.Trans.Cog_sc + SCORE.Trans.NonCog_sc +
-#                         sex + yob + sex*yob + 
-#                         Platform + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, id = FamilyNumber, data=datatriosCITO, corstr = "exchangeable")
-# 
-# 
-# summary(CITO_bothparents)
-# CITO_bothparents_coef <- as.data.frame(summary(CITO_bothparents)$coef)
-# head(CITO_bothparents_coef)
-# colnames(CITO_bothparents_coef) <- c("Estimate", "naive_SE", "naive_Z", "robust_SE", "robust_Z")
-# CITO_bothparents_coef$Pval <- 2*pnorm(-abs(CITO_bothparents_coef$robust_Z))
-# 
-# #                             Estimate    naive_SE    naive_Z   robust_SE   robust_Z         Pval
-# # (Intercept)              28.12470779 45.89728140  0.6127750 45.84512542  0.6134722 5.395642e-01
-# # SCORE.Nontrans.Cog_sc     0.01581185  0.02050492  0.7711248  0.02091467  0.7560171 4.496390e-01
-# # SCORE.Nontrans.NonCog_sc  0.02486621  0.02018873  1.2316879  0.02078278  1.1964818 2.315086e-01
-# # SCORE.Trans.Cog_sc        0.17341861  0.02096710  8.2709867  0.02109865  8.2194155 2.044973e-16
-# # SCORE.Trans.NonCog_sc     0.13380771  0.02021092  6.6205657  0.02061364  6.4912229 8.514240e-1
-# 
-# # Extract estimates 
-# total_NonCog <- CITO_bothparents_coef[5,1] # total is transmitted
-# total_Cog <- CITO_bothparents_coef[4,1]
-# indirect_NonCog <- CITO_bothparents_coef[3,1] #indirect is nontransmitted
-# indirect_Cog <- CITO_bothparents_coef[2,1]
-# direct_NonCog <- total_NonCog - indirect_NonCog #0.1089415
-# direct_Cog <- total_Cog - indirect_Cog #0.1576068
-# ratio_NonCog <- indirect_NonCog/direct_NonCog  #0.2282529
-# ratio_Cog <- indirect_Cog/direct_Cog  #0.1003247
-# ratio_tot_NonCog <- indirect_NonCog/total_NonCog #0.1858354
-# ratio_tot_Cog <- indirect_Cog/total_Cog #0.0911773
+# * * 3.3.1 Analyses CITO with PGS from both parents pulled together -------
 
-# wiht lme
+#with gee #not used for the bootstrapped 
+CITO_bothparents <- gee(CITO_sc ~ SCORE.Nontrans.Cog_sc + SCORE.Nontrans.NonCog_sc + SCORE.Trans.Cog_sc + SCORE.Trans.NonCog_sc +
+                        sex + yob + sex*yob +
+                        Platform + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, id = FamilyNumber, data=datatriosCITO, corstr = "exchangeable")
+
+
+summary(CITO_bothparents)
+CITO_bothparents_coef <- as.data.frame(summary(CITO_bothparents)$coef)
+head(CITO_bothparents_coef)
+colnames(CITO_bothparents_coef) <- c("Estimate", "naive_SE", "naive_Z", "robust_SE", "robust_Z")
+CITO_bothparents_coef$Pval <- 2*pnorm(-abs(CITO_bothparents_coef$robust_Z))
+# Estimate    naive_SE    naive_Z   robust_SE   robust_Z         Pval
+# (Intercept)              28.12470779 45.89728140  0.6127750 45.84512542  0.6134722 5.395642e-01
+# SCORE.Nontrans.Cog_sc     0.01581185  0.02050492  0.7711248  0.02091467  0.7560171 4.496390e-01
+# SCORE.Nontrans.NonCog_sc  0.02486621  0.02018873  1.2316879  0.02078278  1.1964818 2.315086e-01
+# SCORE.Trans.Cog_sc        0.17341861  0.02096710  8.2709867  0.02109865  8.2194155 2.044973e-16
+# SCORE.Trans.NonCog_sc     0.13380771  0.02021092  6.6205657  0.02061364  6.4912229 8.514240e-11
+
+# with lme
 CITO_bothparents_lme <- lme(CITO_sc ~ SCORE.Nontrans.Cog_sc + SCORE.Nontrans.NonCog_sc + SCORE.Trans.Cog_sc + SCORE.Trans.NonCog_sc +
                             sex + yob + sex*yob + 
-                            Platform + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, random=~1|FamilyNumber, method="ML", na.action=na.omit, data=datatrios)
+                            Platform + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, random=~1|FamilyNumber, method="ML", na.action=na.omit, data=datatriosCITO)
 
 CITO_bothparents_coef <- summary(CITO_bothparents_lme)$tTable
-# Value    Std.Error  DF     t-value      p-value
-# (Intercept)               30.781869851  45.67037662 764  0.67400079 5.005147e-01
-# SCORE.Nontrans.Cog_sc      0.015249914   0.02063496 743  0.73903288 4.601204e-01
-# SCORE.Nontrans.NonCog_sc   0.023512520   0.02029745 743  1.15839770 2.470740e-01
-# SCORE.Trans.Cog_sc         0.173913213   0.02108268 743  8.24910436 7.242216e-16
-# SCORE.Trans.NonCog_sc      0.135007177   0.02031540 743  6.64555739 5.844158e-11
-# sex                       -3.992045812  27.18243599 743 -0.14686122 8.832814e-01
-# yob                       -0.016807625   0.02291623 743 -0.73343770 4.635229e-01
-# Platform                   0.036139464   0.01395023 743  2.59059945 9.768755e-03
-# PC1                       -1.403532215 143.54479456 743 -0.00977766 9.922013e-01
-# PC2                      -84.914487985  78.41541985 743 -1.08287998 2.792130e-01
-# PC3                      -97.696503748  47.71903599 743 -2.04732769 4.097711e-02
-# PC4                        4.494302461  40.03968844 743  0.11224619 9.106585e-01
-# PC5                        9.043699488  11.16136715 743  0.81026808 4.180456e-01
-# PC6                       -4.281199074  20.09808240 743 -0.21301530 8.313735e-01
-# PC7                       -6.687229311  20.68168983 743 -0.32334057 7.465283e-01
-# PC8                        1.509112893  16.81104173 743  0.08976915 9.284949e-01
-# PC9                       11.074650686  12.90338483 743  0.85827485 3.910175e-01
-# PC10                     -19.811338149   9.80530222 743 -2.02047196 4.369276e-02
-# sex:yob                    0.001933724   0.01364669 743  0.14169916 8.873561e-01
+CITO_bothparents_coef
+# Value    Std.Error  DF      t-value      p-value
+# (Intercept)               30.781855996  45.67037620 764  0.674000491 5.005149e-01
+# SCORE.Nontrans.Cog_sc      0.015249917   0.02063496 743  0.739033069 4.601203e-01
+# SCORE.Nontrans.NonCog_sc   0.023512527   0.02029745 743  1.158398112 2.470738e-01
+# SCORE.Trans.Cog_sc         0.173913210   0.02108268 743  8.249104774 7.242193e-16
+# SCORE.Trans.NonCog_sc      0.135007171   0.02031540 743  6.645557509 5.844153e-11
 
-write.table(CITO_bothparents_coef, "Estimates_Trios_NTR_CITO_20200501.csv", quote=F )
+write.table(CITO_bothparents_coef, "Estimates_Trios_NTR_CITO_20200511.csv", quote=F )
 
 # Extract estimates
 total_NonCog <- CITO_bothparents_coef[5,1] # total is transmitted
 total_Cog <- CITO_bothparents_coef[4,1]
 indirect_NonCog <- CITO_bothparents_coef[3,1] #indirect is nontransmitted
 indirect_Cog <- CITO_bothparents_coef[2,1]
-direct_NonCog <- total_NonCog - indirect_NonCog #0.1114947
-direct_Cog <- total_Cog - indirect_Cog #0.1586633
-ratio_NonCog <- indirect_NonCog/direct_NonCog  #0.2108847
-ratio_Cog <- indirect_Cog/direct_Cog  #0.09611494
-ratio_tot_NonCog <- indirect_NonCog/total_NonCog #0.1741576
-ratio_tot_Cog <- indirect_Cog/total_Cog #0.08768692
+direct_NonCog <- total_NonCog - indirect_NonCog 
+direct_Cog <- total_Cog - indirect_Cog 
+ratio_NonCog <- indirect_NonCog/direct_NonCog  
+ratio_Cog <- indirect_Cog/direct_Cog  
+ratio_tot_NonCog <- indirect_NonCog/total_NonCog 
+ratio_tot_Cog <- indirect_Cog/total_Cog 
 
 # * * * 3.3.1.1 Bootstrapping ------
 nboot <- 10000
+
+# Bootstrapping with gee is not really reliable, several iterations do not converge
 # bootcoef<-function(data,index){
-#   datx<-datatrios[index,]
-#   mod<-gee(CITO_sc ~ SCORE.Nontrans.Cog_sc + SCORE.Nontrans.NonCog_sc + SCORE.Trans.Cog_sc + SCORE.Trans.NonCog_sc +
-#               sex + yob + sex*yob + 
-#               Platform + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, id = FamilyNumber, data=datx, corstr = "exchangeable")  
+#   datx <- data[index,]
+#   datx <- datx[order(datx$FamilyNumber),] 
+#   mod <- gee(CITO_sc ~ SCORE.Nontrans.Cog_sc + SCORE.Nontrans.NonCog_sc + SCORE.Trans.Cog_sc + SCORE.Trans.NonCog_sc +
+#               sex + yob + sex*yob +
+#               Platform + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, id = FamilyNumber, data=datx, corstr = "exchangeable", silent=T)
 #   mod$coefficients
 # }
 
@@ -992,9 +1010,9 @@ bootcoef<-function(data,index){
   fixef(mod) #get fixed effects
 }
 
-boot.out<-boot(datatriosCITO,bootcoef,nboot, parallel = "multicore", ncpus=20) 
-head(boot.out)
-
+boot.out<-boot(datatriosCITO, bootcoef, nboot, parallel = "multicore", ncpus=20) 
+boot.out
+saveRDS(boot.out, "bootstrapped_output_trios_NTR_CITO_20200511.Rda")
 
 #plot to check bootstrapping
 png("NTR.trios.CITO.bootstrap_lme.png",
@@ -1005,54 +1023,53 @@ png("NTR.trios.CITO.bootstrap_lme.png",
 plot(boot.out)
 dev.off()
 
-# get CI 
-boot.ci(boot.out, type = c("norm", "basic"))
-# Intervals : 
-#   Level      Normal              Basic         
-# 95%   (-98.78, 113.32 )   (-98.07, 112.90 )  
-# Calculations and Intervals on Original Scale
-
+#Save t output of boot
 bootoutput <- as.data.frame(boot.out$t)
 colnames(bootoutput) <- rownames(as.data.frame(boot.out$t0))
 head(bootoutput)
-write.table(bootoutput, "Data_scores_trios_NTR_CITO_bootstrapped_20200501.csv", row.names=F, quote=F)
+write.table(bootoutput, "Data_scores_trios_NTR_CITO_bootstrapped_20200511.csv", row.names=F, quote=F)
 
-bmain <- bootoutput[,2:5] #save variables of interest
-head(bmain)
+# get values out of boot.out for all estimates + create direct and ratio estimates
+original <- as.data.frame(t(boot.out$t0)) # estimates of the original sample #best estimates of the effects
 
-# Create direct and ratio variables
-bmain$total_NonCog <- bmain$SCORE.Trans.NonCog_sc
-bmain$total_Cog <- bmain$SCORE.Trans.Cog_sc
-bmain$indirect_NonCog <- bmain$SCORE.Nontrans.NonCog_sc
-bmain$indirect_Cog <- bmain$SCORE.Nontrans.Cog_sc
-bmain$direct_NonCog <- bmain$total_NonCog - bmain$indirect_NonCog
-bmain$direct_Cog <- bmain$total_Cog - bmain$indirect_Cog
-bmain$ratio_NonCog <- bmain$indirect_NonCog / bmain$direct_NonCog
-bmain$ratio_Cog <- bmain$indirect_Cog / bmain$direct_Cog
-bmain$ratio_tot_NonCog <- bmain$indirect_NonCog / bmain$total_NonCog
-bmain$ratio_tot_Cog <- bmain$indirect_Cog / bmain$total_Cog
-bmain <- bmain[,5:14]
+original$total_NonCog <- original$SCORE.Trans.NonCog_sc
+original$total_Cog <- original$SCORE.Trans.Cog_sc
+original$indirect_NonCog <- original$SCORE.Nontrans.NonCog_sc
+original$indirect_Cog <- original$SCORE.Nontrans.Cog_sc
+original$direct_NonCog <- original$total_NonCog - original$indirect_NonCog
+original$direct_Cog <- original$total_Cog - original$indirect_Cog
+original$ratio_NonCog <- original$indirect_NonCog / original$direct_NonCog
+original$ratio_Cog <- original$indirect_Cog / original$direct_Cog
+original$ratio_tot_NonCog <- original$indirect_NonCog / original$total_NonCog
+original$ratio_tot_Cog <- original$indirect_Cog / original$total_Cog
 
-write.table(bmain, "Data_scores_trios_NTR_CITO_bootstrapped_ratio_20200501.csv", row.names=F, quote=F)
-#bmain <- fread("Data_scores_trios_NTR_CITO_bootstrapped_ratio_20200501.csv")
+bootoutput
+bootoutput$total_NonCog <- bootoutput$SCORE.Trans.NonCog_sc
+bootoutput$total_Cog <- bootoutput$SCORE.Trans.Cog_sc
+bootoutput$indirect_NonCog <- bootoutput$SCORE.Nontrans.NonCog_sc
+bootoutput$indirect_Cog <- bootoutput$SCORE.Nontrans.Cog_sc
+bootoutput$direct_NonCog <- bootoutput$total_NonCog - bootoutput$indirect_NonCog
+bootoutput$direct_Cog <- bootoutput$total_Cog - bootoutput$indirect_Cog
+bootoutput$ratio_NonCog <- bootoutput$indirect_NonCog / bootoutput$direct_NonCog
+bootoutput$ratio_Cog <- bootoutput$indirect_Cog / bootoutput$direct_Cog
+bootoutput$ratio_tot_NonCog <- bootoutput$indirect_NonCog / bootoutput$total_NonCog
+bootoutput$ratio_tot_Cog <- bootoutput$indirect_Cog / bootoutput$total_Cog
 
-# Get CI of all 
-meanall <- apply(bmain, 2, mean)
-sdall <- apply(bmain, 2, sd)
-n <- nboot
-error <- qnorm(0.975)*sdall/sqrt(n)
-leftCI <- meanall-error
-rightCI <- meanall+error
+mean <- apply(bootoutput, 2, mean) # mean of the estimates of the bootstrap resamples
+bias <- mean - original
+se <- apply(bootoutput, 2, sd) #the standard deviation of the bootstrap estimates is the standard error of the sample estimates
 
-tot <- rbind(meanall, sdall, error, leftCI, rightCI)
-# total_NonCog    total_Cog indirect_NonCog indirect_Cog direct_NonCog   direct_Cog ratio_NonCog   ratio_Cog ratio_tot_NonCog ratio_tot_Cog
-# meanall 0.1429005593 0.1766437892    0.0166190641 0.0149600877  0.1262814952 0.1616837015  0.185701120 0.121179949      0.127761312   0.092056308
-# sdall   0.0190448502 0.0201216026    0.0188627591 0.0187305407  0.0328073088 0.0335937158  0.306075655 0.162733235      0.146985320   0.114428568
-# error   0.0003732722 0.0003943762    0.0003697033 0.0003671119  0.0006430114 0.0006584247  0.005998973 0.003189513      0.002880859   0.002242759
-# leftCI  0.1425272871 0.1762494130    0.0162493608 0.0145929758  0.1256384837 0.1610252768  0.179702147 0.117990436      0.124880452   0.089813549
-# rightCI 0.1432738315 0.1770381654    0.0169887674 0.0153271995  0.1269245066 0.1623421262  0.191700093 0.124369462      0.130642171   0.094299067
+error <- qnorm(0.975)*se
+leftCI <- original - bias - error # normal Ci from boot.ci 
+rightCI <- original - bias + error
 
-write.table(tot, "summary_mean_CI_trios_NTR_CITO_20200501.csv", row.names=T, quote=F)
+statsoutput <- rbind(original, mean, bias, se, error, leftCI, rightCI)
+statsoutput$Estimates <- c('original', 'mean', 'bias', 'se', 'error', 'leftCI', 'rightCI')
+statsoutput
+tot <- statsoutput[,c(ncol(statsoutput), 1:(ncol(statsoutput)-1))]
+tot
+
+write.table(tot, "summary_mean_CI_trios_NTR_CITO_20200511.csv", row.names=T, quote=F)
 
 
 # * * 3.3.2 Analyses with PGS from parents separately  -------
