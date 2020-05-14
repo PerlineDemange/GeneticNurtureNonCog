@@ -22,28 +22,36 @@ adoption$Methods <- "Adoption_UKB"
 adoption$pheno <- "EA"
 head(adoption)
 
-ntrsib <- read.table("NTR/summary_mean_CI_siblings_NTR_EA_2020429.csv")
+ntrsib <- read.table("NTR/summary_mean_CI_siblings_NTR_EA_20200511.csv")
+rownames(ntrsib) <- ntrsib$Estimates
+ntrsib$Estimates <- NULL
 ntrsib <- t(ntrsib)
 ntrsib <- as.data.frame(ntrsib)
 ntrsib$Measure <- row.names(ntrsib)
 ntrsib$Methods <- "Siblings_NTR"
 ntrsib$pheno <- "EA"
 
-ntrsibcito <- read.table("NTR/summary_mean_CI_siblings_NTR_CITO_20200430.csv")
+ntrsibcito <- read.table("NTR/summary_mean_CI_siblings_NTR_CITO_20200511.csv")
+rownames(ntrsibcito) <- ntrsibcito$Estimates
+ntrsibcito$Estimates <- NULL
 ntrsibcito <- t(ntrsibcito)
 ntrsibcito <- as.data.frame(ntrsibcito)
 ntrsibcito$Measure <- row.names(ntrsibcito)
 ntrsibcito$Methods <- "Siblings_NTR"
 ntrsibcito$pheno <- "CITO"
 
-ntrtrioea <- read.table("NTR/summary_mean_CI_trios_NTR_EA_20200501.csv")
+ntrtrioea <- read.table("NTR/summary_mean_CI_trios_NTR_EA_20200511.csv")
+rownames(ntrtrioea) <- ntrtrioea$Estimates
+ntrtrioea$Estimates <- NULL
 ntrtrioea <- t(ntrtrioea)
 ntrtrioea <- as.data.frame(ntrtrioea)
 ntrtrioea$Measure <- row.names(ntrtrioea)
 ntrtrioea$Methods <- "Trios_NTR"
 ntrtrioea$pheno <- "EA"
 
-ntrtriocito <- read.table("NTR/summary_mean_CI_trios_NTR_CITO_20200501.csv")
+ntrtriocito <- read.table("NTR/summary_mean_CI_trios_NTR_CITO_20200511.csv")
+rownames(ntrtriocito) <- ntrtriocito$Estimates
+ntrtriocito$Estimates <- NULL
 ntrtriocito <- t(ntrtriocito)
 ntrtriocito <- as.data.frame(ntrtriocito)
 ntrtriocito$Measure <- row.names(ntrtriocito)
@@ -51,9 +59,15 @@ ntrtriocito$Methods <- "Trios_NTR"
 ntrtriocito$pheno <- "CITO"
 
 
-data <- rbind(siblings, adoption, ntrsib, ntrsibcito, ntrtrioea, ntrtriocito)
+data <- rbind(ntrsib, ntrsibcito, ntrtrioea, ntrtriocito)
 head(data)
 library(stringr)
+# Limit to the Measures we want 
+datafig <- data[which(data$Measure == "direct_Cog" | data$Measure == "direct_NonCog" | 
+                      data$Measure == "indirect_Cog" | data$Measure == "indirect_NonCog" |
+                        data$Measure == "total_Cog" | data$Measure == "total_NonCog"| 
+                        data$Measure == "ratio_tot_Cog" | data$Measure == "ratio_tot_NonCog"),]
+data <- datafig
 #Split Measure into Type and PRS and change format back to dataframe
 split <- unlist(strsplit(data$Measure, "_(?=[^_]+$)", perl=TRUE))
 cols <- c("Type", "PRS")
@@ -64,13 +78,13 @@ for(i in 1:nC) {
 }
 head(data)
 
-write.table(data, "dataforfigures_20200501.csv", quote=F, row.names=T)
+#write.table(data, "dataforfigures_20200501.csv", quote=F, row.names=T)
 
 
 library(ggplot2)
 data$Type <- factor(data$Type, levels=c("total", "direct", "indirect", "ratio_tot"))
-data$Methods <- factor(data$Methods, levels=c("Adoption_UKB", "Siblings_UKB", "Siblings_NTR", "Trios_NTR"))
-ggplot(data, aes(x=Type, y=meanall, fill=PRS)) + 
+data$Methods <- factor(data$Methods, levels=c("Siblings_NTR", "Trios_NTR"))
+ggplot(data, aes(x=Type, y=original, fill=PRS)) + 
   geom_bar(position=position_dodge(), stat="identity") +
   geom_errorbar(aes(ymin=leftCI, ymax=rightCI),
                 width=.4,                    # Width of the error bars
@@ -83,7 +97,7 @@ ggplot(data, aes(x=Type, y=meanall, fill=PRS)) +
   xlab("Genetic Effects")+
   facet_grid(. ~ Methods*pheno)+
   #scale_y_continuous(expand = c(0,0)) +
-  ylim(-0.1, 1) +
+  ylim(-0.6, 1) +
   theme(axis.title.y=element_blank(),
         legend.title=element_text("PRS"),
          panel.grid.major = element_blank(),
