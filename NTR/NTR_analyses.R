@@ -231,6 +231,30 @@ head(datasibEA_sibonly)
 finalsib <- as.data.frame(datasibEA_sibonly)
 # sample size = 2438
 
+# Sample descriptive 
+fameasib <- unique(finalsib$FamilyNumber)
+length(unique(finalsib$FamilyNumber)) #1038
+nrow(finalsib[sex==1]) #883 male
+nrow(finalsib[sex==2]) #1555 female 
+883+1555
+883/2438
+summary(finalsib$yob)
+# Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+# 1914    1964    1972    1970    1978    1991 
+sd(finalsib$yob) # 13.09844
+summary(finalsib$Eduyears)
+# Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+# 7.00   13.00   19.00   15.61   19.00   19.00 
+sd(finalsib$Eduyears) #3.734195
+
+summary(finalsib$SCORE.Cog)
+# Min.    1st Qu.     Median       Mean    3rd Qu.       Max. 
+# -8.485e-07 -3.453e-07 -2.520e-07 -2.467e-07 -1.440e-07  3.244e-07 
+summary(finalsib$SCORE.NonCog)
+# Min.    1st Qu.     Median       Mean    3rd Qu.       Max. 
+# -2.917e-07 -1.360e-07 -9.368e-08 -9.358e-08 -5.195e-08  1.109e-07 
+cor(finalsib$SCORE.NonCog,finalsib$SCORE.Cog) # -0.2971826
+
 # Scale variables
 finalsib[,c("EA_sc","scoreNonCog_sc", "scoreCog_sc")]<-apply(finalsib[,c("Eduyears",
                                                                          "SCORE.NonCog", 
@@ -300,6 +324,7 @@ ratio_NonCog <- indirect_NonCog/direct_NonCog
 ratio_Cog <- indirect_Cog/direct_Cog  
 ratio_tot_NonCog <- indirect_NonCog/total_NonCog 
 ratio_tot_Cog <- indirect_Cog/total_Cog 
+
 
 # * * 2.2.5 Bootstrapping ------
 nboot <- 10000
@@ -405,6 +430,63 @@ P_diffcog <- 2*pnorm(-abs(Z_diffcog))
 P_diffnoncog <- 2*pnorm(-abs(Z_diffnoncog))
 P_diffratio <- 2*pnorm(-abs(Z_diffratio))
 
+# * * 2.2.7 Get ICC and total effect
+
+summary(final) #summary lme model 
+
+# Calculate intraclass correlations, function by S. Selzam (Selzam et al. 2019)
+
+# i.e.  The ICC is the ratio of the between-family (i.e., random intercept) variance 
+# over the total variance (between-family variance and error )
+# and is an estimate of how much of the total variation in the outcome 
+# is accounted for by family
+# between-family variance is random effect variance 
+# and error variance is within-group error variance (SD^2) 
+ICCest <- function(model) {
+  icc <- sqrt(diag(getVarCov(model)))^2 / (sqrt(diag(getVarCov(model)))^2 + model$sigma^2 )
+  as.vector(icc)
+}
+
+
+# intercept model
+m0 <- lme(EA_sc~1, 
+          random=~1|FamilyNumber, 
+          method="ML", 
+          na.action=na.omit,
+          data=finalsib, 
+          control=lmeControl(opt = "optim"))
+
+ICCest(m0)
+
+coef(summary(final))[3, 1]
+
+#calculate total effect based on between- & within-family estimate and ICC
+totaleffect <- function(fmodel,imodel){
+  bcoef_noncog <- coef(summary(fmodel))[2,1]
+  bcoef_cog <- coef(summary(fmodel))[3,1]    
+  wcoef_noncog <- coef(summary(fmodel))[4,1]
+  wcoef_cog <- coef(summary(fmodel))[5,1]
+  (bcoef_noncog + bcoef_cog) * ICCest(imodel) + (wcoef_noncog + wcoef_cog) * (1- ICCest(imodel))
+}
+
+totaleffect_cog <- function(fmodel,imodel){
+  bcoef_cog <- coef(summary(fmodel))[3,1]    
+  wcoef_cog <- coef(summary(fmodel))[5,1]
+  bcoef_cog * ICCest(imodel) + wcoef_cog * (1- ICCest(imodel))
+}
+
+totaleffect_noncog <- function(fmodel,imodel){
+  bcoef_noncog <- coef(summary(fmodel))[2,1]    
+  wcoef_noncog <- coef(summary(fmodel))[4,1]
+  bcoef_noncog * ICCest(imodel) + wcoef_noncog * (1- ICCest(imodel))
+}
+
+
+totaleffect(final, m0)
+totaleffect_cog(final, m0)
+totaleffect_noncog(final, m0)
+
+
 # * 2.3 Siblings analyses with CITO ==============================
 # * * 2.3.1 Clean data and scale variables -----
 datasibcito <- datasib[!is.na(datasib$cito_final),] #1850
@@ -420,6 +502,30 @@ head(datasibcito)
 finalsib <- as.data.frame(datasibcito)
 
 summary(is.na(finalsib$cito_final))  #1631: final sample size
+
+# Sample descriptive 
+famcitosib <- unique(finalsib$FamilyNumber)
+length(unique(finalsib$FamilyNumber)) #757
+nrow(finalsib[sex==1]) #734 male
+nrow(finalsib[sex==2]) #897 female 
+734+897
+734/1631
+summary(finalsib$yob)
+# Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+# 1981    1989    1991    1992    1995    2001 
+sd(finalsib$yob) # 3.523733
+summary(finalsib$cito_final)
+# Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+# 507.0   534.0   540.0   538.9   545.0   550.0 
+sd(finalsib$cito_final) # 8.315999
+
+summary(finalsib$SCORE.Cog)
+# Min.    1st Qu.     Median       Mean    3rd Qu.       Max. 
+# -8.485e-07 -3.500e-07 -2.431e-07 -2.445e-07 -1.390e-07  2.482e-07 
+summary(finalsib$SCORE.NonCog)
+# Min.    1st Qu.     Median       Mean    3rd Qu.       Max. 
+# -2.856e-07 -1.358e-07 -9.383e-08 -9.493e-08 -5.272e-08  1.137e-07
+cor(finalsib$SCORE.NonCog,finalsib$SCORE.Cog) # -0.2616856
 
 
 # Scale variables
@@ -724,6 +830,32 @@ hist(datatrios$EA_sc)
 
 datatriosEA <- datatrios[!is.na(datatrios$EA_sc),]
 
+# Sample descriptive 
+
+fameatrio <- unique(datatriosEA$FamilyNumber)
+length(unique(datatriosEA$FamilyNumber)) #1254
+nrow(datatriosEA[GENDER==1]) #791 male
+nrow(datatriosEA[GENDER==2]) #1416 female 
+summary(datatriosEA$sex)
+791+1416
+791/2207
+summary(datatriosEA$yob)
+# Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+# 1947    1972    1976    1977    1986    1991 
+sd(datatriosEA$yob) # 8.276401
+summary(datatriosEA$Eduyears)
+# Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+# 7.00   13.00   19.00   16.23   19.00   19.00 
+sd(datatriosEA$Eduyears) #3.384383
+
+cor(datatriosEA$SCORE.Nontrans.Dad.Cog, datatriosEA$SCORE.Trans.Dad.Cog) # 0.03580683
+cor(datatriosEA$SCORE.Nontrans.Mom.Cog, datatriosEA$SCORE.Trans.Mom.Cog) # -0.04957646
+cor(datatriosEA$SCORE.Nontrans.Dad.NonCog, datatriosEA$SCORE.Trans.Dad.NonCog) # -0.01338433
+cor(datatriosEA$SCORE.Nontrans.Mom.NonCog, datatriosEA$SCORE.Trans.Mom.NonCog) # -0.01081725
+cor(datatriosEA$SCORE.Nontrans.Cog_sc, datatriosEA$SCORE.Trans.Cog_sc) #0.00163862
+cor(datatriosEA$SCORE.Nontrans.NonCog_sc, datatriosEA$SCORE.Trans.NonCog_sc) #0.01230696
+
+
 # * * 3.2.1 Analyses EA with PGS from both parents pulled together -------
 
 #With gee: might lead to issues when bootstrapping
@@ -732,7 +864,7 @@ EA_bothparents <- gee(EA_sc ~ SCORE.Nontrans.Cog_sc + SCORE.Nontrans.NonCog_sc +
                         sex + yob + sex*yob +
                         Platform + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, 
                       id = FamilyNumber, 
-                      data=datatrios, 
+                      data=datatriosEA, 
                       corstr = "exchangeable")
 
 summary(EA_bothparents)
@@ -900,6 +1032,30 @@ summary(is.na(datatrios$CITO_sc)) # data for 1526
 
 datatriosCITO <- datatrios[!is.na(datatrios$CITO_sc),]
 datatriosCITO <- datatriosCITO[order(datatriosCITO$FamilyNumber),] 
+
+# Sample descriptive 
+length(unique(datatriosCITO$FamilyNumber)) #765
+nrow(datatriosCITO[sex==1]) #674 male
+nrow(datatriosCITO[sex==2]) #852 female 
+summary(datatriosCITO$sex)
+674+852
+674/1526
+summary(datatriosCITO$yob)
+# Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+# 1984    1989    1991    1992    1994    2002  
+sd(datatriosCITO$yob) # 3.61102
+summary(datatriosCITO$cito_final)
+# Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+# 507.0   534.0   541.0   539.1   545.0   550.0 
+sd(datatriosCITO$cito_final) #8.050127
+
+cor(datatriosCITO$SCORE.Nontrans.Dad.Cog, datatriosCITO$SCORE.Trans.Dad.Cog) # 0.02685697
+cor(datatriosCITO$SCORE.Nontrans.Mom.Cog, datatriosCITO$SCORE.Trans.Mom.Cog) # 0.00466349
+cor(datatriosCITO$SCORE.Nontrans.Dad.NonCog, datatriosCITO$SCORE.Trans.Dad.NonCog) # 0.06068394
+cor(datatriosCITO$SCORE.Nontrans.Mom.NonCog, datatriosCITO$SCORE.Trans.Mom.NonCog) # 0.02895511
+cor(datatriosCITO$SCORE.Nontrans.Cog_sc, datatriosCITO$SCORE.Trans.Cog_sc) #0.05353203
+cor(datatriosCITO$SCORE.Nontrans.NonCog_sc, datatriosCITO$SCORE.Trans.NonCog_sc) #0.0745213
+
 
 # * * 3.3.1 Analyses CITO with PGS from both parents pulled together -------
 
