@@ -26,10 +26,6 @@ summary(pheno) #24984
 
 names(pheno)[names(pheno) == 'fisnumber'] <- 'FISNumber'
 
-# do with old pheno to test
-#pheno <- read.csv2("D:/Documents/CogNonCog/NTRphenotypes/educational_attainment_NTR.csv", sep=";")
-#colnames(pheno)[colnames(pheno)=="?..FISNumber"] <- "FISNumber" # all first columns are not weel named when exporting csv from spss in csv 
-
 # get variable and value labels
 label <- read_spss('Phenotypic_data/NTR-DAC-1927_Demange_parental_env_EA_20200429.sav')
 label.var <- get_label(label)
@@ -47,6 +43,13 @@ cov <- as.data.frame(cov)
 
 # * 1.1 Clean and adjust phenotypic data: EA + CITO ======================
 # * * 1.1.1 Clean education data, recode to EduYears -----------------------------
+# NTR contains two highest education variables: educat_a and educat_c. 
+# Educat_a contains 4 categories: 1: primary school only, 2: lower vocational and lower
+#    secondary school, 3: intermediate vocational and intermediate and higher 
+#    secondary school, 4: higher vocational school and university  
+# Educat_c  contains 7 categories: !: primary school only, 2: lower vocational,
+#    3: lower secondary, 4: intermediate vocational, 5: intermadiate/higher secondary. 
+#     6: higher vocational schooling, 7: university. 
 
 summary(is.na(pheno$educat_a)) #17891
 summary(is.na(pheno$educat_c)) # same number of missing data for both 
@@ -63,27 +66,43 @@ pheno$educat_c[pheno$educat_c == -1] <- NA
 summary(is.na(pheno$educat_a)) #13971
 summary(is.na(pheno$educat_c)) #12293 for educat_c 
 
-# recode education in ISCED following Okbay et al 2016 Supplementary Table 1.3 (only use category c)
-pheno$ISCED <- pheno$educat_c
-pheno$ISCED[pheno$ISCED == 0] <- "ISCED0"
+# Recode educat_c
+# recode educat_c in ISCED following Okbay et al 2016 Supplementary Table 1.3 
+pheno$ISCED_c <- pheno$educat_c
+pheno$ISCED_c[pheno$ISCED_c == 0] <- "ISCED0"
+pheno$ISCED_c[pheno$ISCED_c == 1] <- "ISCED1"
+pheno$ISCED_c[pheno$ISCED_c == 2] <- "ISCED2"
+pheno$ISCED_c[pheno$ISCED_c == 3] <- "ISCED2"
+pheno$ISCED_c[pheno$ISCED_c == 4] <- "ISCED3"
+pheno$ISCED_c[pheno$ISCED_c == 5] <- "ISCED3"
+pheno$ISCED_c[pheno$ISCED_c == 6] <- "ISCED5"
+pheno$ISCED_c[pheno$ISCED_c == 7] <- "ISCED5"
+pheno$ISCED_c[pheno$ISCED_c == 8] <- "ISCED6"
+# recode in EduYears following Okbay et al 2016 Supplementary Table 1.6
+pheno$Eduyears_c <-  pheno$ISCED_c
+pheno$Eduyears_c[pheno$Eduyears_c == "ISCED0"] <- 1
+pheno$Eduyears_c[pheno$Eduyears_c == "ISCED1"] <- 7
+pheno$Eduyears_c[pheno$Eduyears_c == "ISCED2"] <- 10
+pheno$Eduyears_c[pheno$Eduyears_c == "ISCED3"] <- 13
+pheno$Eduyears_c[pheno$Eduyears_c == "ISCED5"] <- 19
+pheno$Eduyears_c[pheno$Eduyears_c == "ISCED6"] <- 22
+pheno$Eduyears_c <- as.numeric(pheno$Eduyears_c)
+hist(pheno$Eduyears_c) # Only four categories: 7, 10, 13, and 19
+#these 4 categories corresponds as well to the categories present in educat_a which has a higher sample size
+
+# Recode Educat_a 
+# recode educat_a in EduYears following above classification 
+pheno$ISCED <- pheno$educat_a
 pheno$ISCED[pheno$ISCED == 1] <- "ISCED1"
 pheno$ISCED[pheno$ISCED == 2] <- "ISCED2"
-pheno$ISCED[pheno$ISCED == 3] <- "ISCED2"
-pheno$ISCED[pheno$ISCED == 4] <- "ISCED3"
-pheno$ISCED[pheno$ISCED == 5] <- "ISCED3"
-pheno$ISCED[pheno$ISCED == 6] <- "ISCED5"
-pheno$ISCED[pheno$ISCED == 7] <- "ISCED5"
-pheno$ISCED[pheno$ISCED == 8] <- "ISCED6"
-# recode in EduYears following Okbay et al 2016 Supplementary Table 1.6
-pheno$Eduyears <-  pheno$ISCED
-pheno$Eduyears[pheno$Eduyears == "ISCED0"] <- 1
+pheno$ISCED[pheno$ISCED == 3] <- "ISCED3"
+pheno$ISCED[pheno$ISCED == 4] <- "ISCED5"
+pheno$Eduyears <- pheno$ISCED
 pheno$Eduyears[pheno$Eduyears == "ISCED1"] <- 7
 pheno$Eduyears[pheno$Eduyears == "ISCED2"] <- 10
 pheno$Eduyears[pheno$Eduyears == "ISCED3"] <- 13
-pheno$Eduyears[pheno$Eduyears== "ISCED5"] <- 19
-pheno$Eduyears[pheno$Eduyears == "ISCED6"] <- 22
+pheno$Eduyears[pheno$Eduyears == "ISCED5"] <- 19
 pheno$Eduyears <- as.numeric(pheno$Eduyears)
-
 hist(pheno$Eduyears)
 
 # * * 1.1.2 Clean CITO ------------------------------------
@@ -214,11 +233,12 @@ head(data)
 summary(data$Platform) 
 
 datasib <- data
+write.table(datasib, "Data_siblings_NTR_20200531.csv", row.names=F, quote=F)
 
 # * 2.2 Sibling analysis with EA ==========================
 # * * 2.2.1 Clean data and scale variables ------
 # Keep only data with EA
-datasibEA <- datasib[!is.na(datasib$Eduyears),] #3129
+datasibEA <- datasib[!is.na(datasib$Eduyears),] #3672
 head(datasibEA)
 
 number <- as.data.frame(table(datasibEA$FamilyNumber))
@@ -229,31 +249,34 @@ datasibEA_sibonly<- datasibEA[!which(datasibEA$FamilyNumber %in% list_onemember)
 head(datasibEA_sibonly)
 
 finalsib <- as.data.frame(datasibEA_sibonly)
-# sample size = 2438
+# sample size = 3163
 
-# Sample descriptive 
+# * * 2.2.2 Sample descriptive -----------
 fameasib <- unique(finalsib$FamilyNumber)
-length(unique(finalsib$FamilyNumber)) #1038
-nrow(finalsib[sex==1]) #883 male
-nrow(finalsib[sex==2]) #1555 female 
-883+1555
-883/2438
+length(unique(finalsib$FamilyNumber)) #1309
+
+summary(finalsib$sex)
+nrow(finalsib[finalsib$sex==1,]) #1169 male
+nrow(finalsib[finalsib$sex==2,]) #1994 female 
+nrow(finalsib[finalsib$sex==1,]) / (nrow(finalsib[finalsib$sex==1,])+nrow(finalsib[finalsib$sex==2,]))
+# 0.3695858
+
 summary(finalsib$yob)
 # Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-# 1914    1964    1972    1970    1978    1991 
-sd(finalsib$yob) # 13.09844
+# 1914    1963    1972    1970    1978    1991 
+sd(finalsib$yob) # 12.99691
 summary(finalsib$Eduyears)
 # Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-# 7.00   13.00   19.00   15.61   19.00   19.00 
-sd(finalsib$Eduyears) #3.734195
+# 7.00   13.00   19.00   15.52   19.00   19.00 
+sd(finalsib$Eduyears) #3.755471
 
 summary(finalsib$SCORE.Cog)
 # Min.    1st Qu.     Median       Mean    3rd Qu.       Max. 
-# -8.485e-07 -3.453e-07 -2.520e-07 -2.467e-07 -1.440e-07  3.244e-07 
+# -8.485e-07 -3.479e-07 -2.518e-07 -2.491e-07 -1.473e-07  3.244e-07 
 summary(finalsib$SCORE.NonCog)
 # Min.    1st Qu.     Median       Mean    3rd Qu.       Max. 
-# -2.917e-07 -1.360e-07 -9.368e-08 -9.358e-08 -5.195e-08  1.109e-07 
-cor(finalsib$SCORE.NonCog,finalsib$SCORE.Cog) # -0.2971826
+# -2.917e-07 -1.372e-07 -9.382e-08 -9.349e-08 -5.049e-08  1.109e-07 
+cor(finalsib$SCORE.NonCog,finalsib$SCORE.Cog) # -0.2999655
 
 # Scale variables
 finalsib[,c("EA_sc","scoreNonCog_sc", "scoreCog_sc")]<-apply(finalsib[,c("Eduyears",
@@ -264,10 +287,28 @@ finalsib[,c("EA_sc","scoreNonCog_sc", "scoreCog_sc")]<-apply(finalsib[,c("Eduyea
 hist(finalsib$EA_sc)
 
 ## Save data
-# write.table(finalsib, "Data_siblings_NTR_EA_20200511.csv", row.names=F, quote=F)
-# finalsib <- fread("Data_siblings_NTR_EA_20200511.csv")
+#write.table(finalsib, "Data_siblings_NTR_EA_20200531.csv", row.names=F, quote=F)
+#finalsib <- fread("Data_siblings_NTR_EA_20200531.csv")
 # head(finalsib)
 
+
+# * * 2.2.2 ICC  -----
+# ICC: functions written by Saskia Selzam, from Selzam et al. 2019
+#calculate intraclass correlations
+#i.e.  The ICC is the ratio of the between-family (i.e., random intercept) variance over the total variance 
+#and is an estimate of how much of the total variation in the outcome is accounted for by family
+ICCest <- function(model) {
+  icc <- sqrt(diag(getVarCov(model)))^2 / (sqrt(diag(getVarCov(model)))^2 + model$sigma^2 )
+  as.vector(icc)
+}
+
+# intercept model
+m0 <- lme(EA_sc~1, 
+          random=~1|FamilyNumber, 
+          method="ML", 
+          na.action=na.omit,
+          data=finalsib)
+ICCest(m0) #get ICC #0.4362076
 
 
 # * * 2.2.2 Simple linear model -----
@@ -306,13 +347,13 @@ summary(final)
 names(summary(final))
 summary(final)$tTable
 # Value    Std.Error   DF    t-value      p-value
-# (Intercept)  -1.294493e+01  9.172725960 1384 -1.4112414 1.583982e-01
-# GPS_B_NonCog  2.700489e-01  0.026677347 1035 10.1227806 4.959911e-23
-# GPS_B_Cog     2.587895e-01  0.026813999 1035  9.6512816 3.662399e-21
-# GPS_W_NonCog  9.891056e-02  0.028762993 1384  3.4388131 6.016225e-04
-# GPS_W_Cog     1.339745e-01  0.028051887 1384  4.7759518 1.978682e-06
+# (Intercept)  -14.238502310  8.259188949 1838 -1.7239589 8.488342e-02
+# GPS_B_NonCog   0.259302293  0.023793454 1306 10.8980520 1.569952e-26
+# GPS_B_Cog      0.234767971  0.023928715 1306  9.8111398 5.666971e-22
+# GPS_W_NonCog   0.116504076  0.026178616 1838  4.4503528 9.087021e-06
+# GPS_W_Cog      0.156129061  0.025660112 1838  6.0845044 1.418435e-09
 
-# write.table(summary(final)$tTable, "Estimates_Siblings_NTR_EA_20200511.csv", quote=F )
+#write.table(summary(final)$tTable, "Estimates_Siblings_NTR_EA_20200531.csv", quote=F )
 
 direct_NonCog <- summary(final)$tTable[4,1]# direct effect is beta within 
 direct_Cog <- summary(final)$tTable[5,1]
@@ -344,11 +385,11 @@ bootcoef<-function(data,index){
 # Carry out bootstrap
 boot.out<-boot(finalsib,bootcoef,nboot, parallel = "multicore", ncpus=20) 
 
-#saveRDS(boot.out, "bootstrapped_output_siblings_NTR_EA_20200511.Rda")
-#boot.out <- readRDS("bootstrapped_output_siblings_NTR_EA_20200511.Rda")
+#saveRDS(boot.out, "bootstrapped_output_siblings_NTR_EA_20200531.Rda")
+#boot.out <- readRDS("bootstrapped_output_siblings_NTR_EA_20200531.Rda")
 
 # Plot to check bootstrapping
-png("NTR.sib.EA.bootstrap_20200511.png",
+png("NTR.sib.EA.bootstrap_20200531.png",
     width = 10,
     height = 6,
     units = 'in',
@@ -361,7 +402,7 @@ dev.off()
 bootoutput <- as.data.frame(boot.out$t)
 colnames(bootoutput) <- rownames(as.data.frame(boot.out$t0))
 head(bootoutput)
-#write.table(bootoutput, "Data_scores_siblings_NTR_EA_bootstrapped_20200511.csv", 
+#write.table(bootoutput, "Data_scores_siblings_NTR_EA_bootstrapped_20200531.csv", 
 #              row.names=F, quote=F)
 
 # Get values out of boot.out for all estimates + create indirect and ratio estimates
@@ -410,7 +451,7 @@ statsoutput
 tot <- statsoutput[,c(ncol(statsoutput), 1:(ncol(statsoutput)-1))]
 tot
 
-#write.table(tot, "summary_mean_CI_siblings_NTR_EA_20200511.csv", row.names=T, quote=F)
+write.table(tot, "summary_mean_CI_siblings_NTR_EA_20200531.csv", row.names=T, quote=F)
 
 # * * 2.2.6  Comparing estimates ------
 
@@ -430,61 +471,9 @@ P_diffcog <- 2*pnorm(-abs(Z_diffcog))
 P_diffnoncog <- 2*pnorm(-abs(Z_diffnoncog))
 P_diffratio <- 2*pnorm(-abs(Z_diffratio))
 
-# * * 2.2.7 Get ICC and total effect
+compare <- cbind(Z_diffcog, P_diffcog, Z_diffnoncog, P_diffnoncog, Z_diffratio, P_diffratio)
 
-summary(final) #summary lme model 
-
-# Calculate intraclass correlations, function by S. Selzam (Selzam et al. 2019)
-
-# i.e.  The ICC is the ratio of the between-family (i.e., random intercept) variance 
-# over the total variance (between-family variance and error )
-# and is an estimate of how much of the total variation in the outcome 
-# is accounted for by family
-# between-family variance is random effect variance 
-# and error variance is within-group error variance (SD^2) 
-ICCest <- function(model) {
-  icc <- sqrt(diag(getVarCov(model)))^2 / (sqrt(diag(getVarCov(model)))^2 + model$sigma^2 )
-  as.vector(icc)
-}
-
-
-# intercept model
-m0 <- lme(EA_sc~1, 
-          random=~1|FamilyNumber, 
-          method="ML", 
-          na.action=na.omit,
-          data=finalsib, 
-          control=lmeControl(opt = "optim"))
-
-ICCest(m0)
-
-coef(summary(final))[3, 1]
-
-#calculate total effect based on between- & within-family estimate and ICC
-totaleffect <- function(fmodel,imodel){
-  bcoef_noncog <- coef(summary(fmodel))[2,1]
-  bcoef_cog <- coef(summary(fmodel))[3,1]    
-  wcoef_noncog <- coef(summary(fmodel))[4,1]
-  wcoef_cog <- coef(summary(fmodel))[5,1]
-  (bcoef_noncog + bcoef_cog) * ICCest(imodel) + (wcoef_noncog + wcoef_cog) * (1- ICCest(imodel))
-}
-
-totaleffect_cog <- function(fmodel,imodel){
-  bcoef_cog <- coef(summary(fmodel))[3,1]    
-  wcoef_cog <- coef(summary(fmodel))[5,1]
-  bcoef_cog * ICCest(imodel) + wcoef_cog * (1- ICCest(imodel))
-}
-
-totaleffect_noncog <- function(fmodel,imodel){
-  bcoef_noncog <- coef(summary(fmodel))[2,1]    
-  wcoef_noncog <- coef(summary(fmodel))[4,1]
-  bcoef_noncog * ICCest(imodel) + wcoef_noncog * (1- ICCest(imodel))
-}
-
-
-totaleffect(final, m0)
-totaleffect_cog(final, m0)
-totaleffect_noncog(final, m0)
+#write.table(compare, "Ztests_sib_NTR_EA_20200531.csv", row.names=T, quote=F)
 
 
 # * 2.3 Siblings analyses with CITO ==============================
@@ -506,10 +495,13 @@ summary(is.na(finalsib$cito_final))  #1631: final sample size
 # Sample descriptive 
 famcitosib <- unique(finalsib$FamilyNumber)
 length(unique(finalsib$FamilyNumber)) #757
-nrow(finalsib[sex==1]) #734 male
-nrow(finalsib[sex==2]) #897 female 
-734+897
-734/1631
+
+summary(finalsib$sex)
+nrow(finalsib[finalsib$sex==1,]) #734 male
+nrow(finalsib[finalsib$sex==2,]) #897 female 
+nrow(finalsib[finalsib$sex==1,]) / (nrow(finalsib[finalsib$sex==1,]) +nrow(finalsib[finalsib$sex==2,]))
+# 0.4500301
+
 summary(finalsib$yob)
 # Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
 # 1981    1989    1991    1992    1995    2001 
@@ -543,6 +535,16 @@ hist(finalsib$scoreCog_sc)
 ## Save data
 # write.table(finalsib, "Data_siblings_NTR_CITO_20200511.csv", row.names=F, quote=F)
 # finalsib <- fread("Data_siblings_NTR_CITO_20200511.csv")
+
+
+# * * 2.3.2 ICC  -----
+m0 <- lme(CITO_sc~1, 
+          random=~1|FamilyNumber, 
+          method="ML", 
+          na.action=na.omit,
+          data=finalsib)
+ICCest(m0) #get ICC #0.4113067
+
 
 # * * 2.3.2 Simple linear model -----
 
@@ -688,6 +690,11 @@ P_diffcog <- 2*pnorm(-abs(Z_diffcog))
 P_diffnoncog <- 2*pnorm(-abs(Z_diffnoncog))
 P_diffratio <- 2*pnorm(-abs(Z_diffratio))
 
+compare <- cbind(Z_diffcog, P_diffcog, Z_diffnoncog, P_diffnoncog, Z_diffratio, P_diffratio)
+
+#write.table(compare, "Ztests_sib_NTR_CITO_20200531.csv", row.names=T, quote=F)
+
+
 # 3.  Trios analyses #####################################
 # * 3.1 Clean data for trios analyses ===============================
 # * * 3.1.1 Get transmitted and non-transmitted scores ----------
@@ -810,50 +817,64 @@ datatrios[,c("CITO_sc",
 hist(datatrios$SCORE.Nontrans.Dad.Cog_sc)
 
 # Get PGS tranmsitted and non-transmitted for both parents combined
-datatrios$SCORE.Nontrans.Cog_sc <- datatrios$SCORE.Nontrans.Dad.Cog_sc + datatrios$SCORE.Nontrans.Mom.Cog_sc
-datatrios$SCORE.Trans.Cog_sc <- datatrios$SCORE.Trans.Dad.Cog_sc + datatrios$SCORE.Trans.Mom.Cog_sc
-datatrios$SCORE.Nontrans.NonCog_sc <- datatrios$SCORE.Nontrans.Dad.NonCog_sc + datatrios$SCORE.Nontrans.Mom.NonCog_sc
-datatrios$SCORE.Trans.NonCog_sc <- datatrios$SCORE.Trans.Dad.NonCog_sc + datatrios$SCORE.Trans.Mom.NonCog_sc
-hist(datatrios$SCORE.Nontrans.Cog_sc)
+datatrios$SCORE.Nontrans.Cog <- (datatrios$SCORE.Nontrans.Dad.Cog + datatrios$SCORE.Nontrans.Mom.Cog)/2
+datatrios$SCORE.Trans.Cog <- (datatrios$SCORE.Trans.Dad.Cog + datatrios$SCORE.Trans.Mom.Cog)/2
+datatrios$SCORE.Nontrans.NonCog <- (datatrios$SCORE.Nontrans.Dad.NonCog + datatrios$SCORE.Nontrans.Mom.NonCog)/2
+datatrios$SCORE.Trans.NonCog <- (datatrios$SCORE.Trans.Dad.NonCog + datatrios$SCORE.Trans.Mom.NonCog)/2
+
+datatrios$SCORE.Nontrans.Cog_sc <- scale(datatrios$SCORE.Nontrans.Cog)
+datatrios$SCORE.Trans.Cog_sc <- scale(datatrios$SCORE.Trans.Cog)
+datatrios$SCORE.Nontrans.NonCog_sc <-  scale(datatrios$SCORE.Nontrans.NonCog)
+datatrios$SCORE.Trans.NonCog_sc <-  scale(datatrios$SCORE.Trans.NonCog)
+
+#Investigate correlation of the transmitted and non-transmitted polygenic scores
+cor.test(datatrios$SCORE.Nontrans.NonCog_sc, datatrios$SCORE.Trans.NonCog_sc) #0.02866575
+cor.test(datatrios$SCORE.Nontrans.Cog_sc, datatrios$SCORE.Trans.Cog_sc)
+
+cor.test(datatrios$SCORE.Nontrans.Dad.NonCog, datatrios$SCORE.Trans.Dad.NonCog)
+cor.test(datatrios$SCORE.Nontrans.Dad.Cog, datatrios$SCORE.Trans.Dad.Cog)
+
+cor.test(datatrios$SCORE.Nontrans.Mom.NonCog, datatrios$SCORE.Trans.Mom.NonCog)
+cor.test(datatrios$SCORE.Nontrans.Mom.Cog, datatrios$SCORE.Trans.Mom.Cog)
 
 # Order by FamilyNumber, necessary step for using GEE 
 datatrios <- datatrios[order(datatrios$FamilyNumber),] 
 
 # Save data trios
-#write.table(datatrios, "Data_trios_NTR_20200511.csv", row.names=F, quote=F)
-#datatrios <- fread("Data_trios_NTR_20200511.csv", header=T, colClasses=c("FISNumber"="character"))
+#write.table(datatrios, "Data_trios_NTR_20200531.csv", row.names=F, quote=F)
+#datatrios <- fread("Data_trios_NTR_20200531.csv", header=T, colClasses=c("FISNumber"="character"))
 #str(datatrios)
 
 # * 3.2 Trios analyses with EA =========
-summary(is.na(datatrios$EA_sc)) #data for 2207
+summary(is.na(datatrios$EA_sc)) #data for 2535
 hist(datatrios$EA_sc)
 
 datatriosEA <- datatrios[!is.na(datatrios$EA_sc),]
 
 # Sample descriptive 
 
+summary(datatriosEA$sex) # there is one participant with -9 
+datatriosEA <- datatriosEA[datatriosEA$sex>0, ]
+
+#new sample size is 2534
+
 fameatrio <- unique(datatriosEA$FamilyNumber)
-length(unique(datatriosEA$FamilyNumber)) #1254
-nrow(datatriosEA[GENDER==1]) #791 male
-nrow(datatriosEA[GENDER==2]) #1416 female 
-summary(datatriosEA$sex)
-791+1416
-791/2207
+length(unique(datatriosEA$FamilyNumber)) #1337
+
+
+nrow(datatriosEA[datatriosEA$sex==1,]) #902 male
+nrow(datatriosEA[datatriosEA$sex==2,]) #1632 female 
+nrow(datatriosEA[datatriosEA$sex==1,])/ (nrow(datatriosEA[datatriosEA$sex==1,]) + nrow(datatriosEA[datatriosEA$sex==2,]))
+#0.355959
+
 summary(datatriosEA$yob)
 # Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
 # 1947    1972    1976    1977    1986    1991 
-sd(datatriosEA$yob) # 8.276401
+sd(datatriosEA$yob) # 8.143513
 summary(datatriosEA$Eduyears)
 # Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-# 7.00   13.00   19.00   16.23   19.00   19.00 
-sd(datatriosEA$Eduyears) #3.384383
-
-cor(datatriosEA$SCORE.Nontrans.Dad.Cog, datatriosEA$SCORE.Trans.Dad.Cog) # 0.03580683
-cor(datatriosEA$SCORE.Nontrans.Mom.Cog, datatriosEA$SCORE.Trans.Mom.Cog) # -0.04957646
-cor(datatriosEA$SCORE.Nontrans.Dad.NonCog, datatriosEA$SCORE.Trans.Dad.NonCog) # -0.01338433
-cor(datatriosEA$SCORE.Nontrans.Mom.NonCog, datatriosEA$SCORE.Trans.Mom.NonCog) # -0.01081725
-cor(datatriosEA$SCORE.Nontrans.Cog_sc, datatriosEA$SCORE.Trans.Cog_sc) #0.00163862
-cor(datatriosEA$SCORE.Nontrans.NonCog_sc, datatriosEA$SCORE.Trans.NonCog_sc) #0.01230696
+# 7.00   13.00   19.00   16.16   19.00   19.00  
+sd(datatriosEA$Eduyears) #3.425723
 
 
 # * * 3.2.1 Analyses EA with PGS from both parents pulled together -------
@@ -872,13 +893,13 @@ EA_bothparents_coef <- as.data.frame(summary(EA_bothparents)$coef)
 head(EA_bothparents_coef)
 colnames(EA_bothparents_coef) <- c("Estimate", "naive_SE", "naive_Z", "robust_SE", "robust_Z")
 EA_bothparents_coef$Pval <- 2*pnorm(-abs(EA_bothparents_coef$robust_Z))
-
-#                             Estimate    naive_SE    naive_Z   robust_SE   robust_Z         Pval
-# (Intercept)              -12.21069663 18.57714156 -0.6572969 20.44943695 -0.5971165 5.504296e-01
-# SCORE.Nontrans.Cog_sc      0.08353486  0.01570860  5.3177779  0.01579574  5.2884430 1.233620e-07
-# SCORE.Nontrans.NonCog_sc   0.08391856  0.01616183  5.1923932  0.01672194  5.0184689 5.208491e-07
-# SCORE.Trans.Cog_sc         0.15818493  0.01581062 10.0049768  0.01552264 10.1905973 2.184180e-24
-# SCORE.Trans.NonCog_sc      0.14257480  0.01571810  9.0707429  0.01606072  8.8772364 6.854205e-19
+# Estimate    naive_SE    naive_Z   robust_SE   robust_Z         Pval
+# (Intercept)              -17.1803402 17.90987855 -0.9592662 19.27228798 -0.8914531 3.726862e-01
+# SCORE.Nontrans.Cog_sc      0.1119145  0.02098053  5.3342052  0.02129393  5.2556976 1.474644e-07
+# SCORE.Nontrans.NonCog_sc   0.1096250  0.02163807  5.0663019  0.02221917  4.9338028 8.064387e-07
+# SCORE.Trans.Cog_sc         0.2178107  0.02121058 10.2689668  0.02106147 10.3416690 4.565168e-25
+# SCORE.Trans.NonCog_sc      0.2080600  0.02129834  9.7688339  0.02137421  9.7341598 2.155918e-22
+# sex                       -9.3119390  9.94507687 -0.9363366 10.74898606 -0.8663086 3.863210e-01
 
 
 # With lme 
@@ -893,25 +914,25 @@ EA_bothparents_lme <- lme(EA_sc ~ SCORE.Nontrans.Cog_sc + SCORE.Nontrans.NonCog_
 
 
 EA_bothparents_coef <- summary(EA_bothparents_lme)$tTable
-# Value    Std.Error   DF    t-value      p-value
-# (Intercept)              -11.772613610 1.854943e+01 1253 -0.6346617 5.257649e-01
-# SCORE.Nontrans.Cog_sc      0.083633521 1.576822e-02  935  5.3039285 1.415182e-07
-# SCORE.Nontrans.NonCog_sc   0.083983778 1.622382e-02  935  5.1765731 2.766792e-07
-# SCORE.Trans.Cog_sc         0.158383632 1.587046e-02  935  9.9797772 2.341669e-22
-# SCORE.Trans.NonCog_sc      0.142455775 1.577912e-02  935  9.0281204 9.762234e-19
+# Value    Std.Error   DF     t-value      p-value
+# (Intercept)              -16.737263109 1.789880e+01 1336 -0.93510538 3.499030e-01
+# SCORE.Nontrans.Cog_sc      0.111772484 2.104074e-02 1179  5.31219328 1.293994e-07
+# SCORE.Nontrans.NonCog_sc   0.109510120 2.169886e-02 1179  5.04681384 5.199286e-07
+# SCORE.Trans.Cog_sc         0.218014744 2.127095e-02 1179 10.24941439 1.132108e-23
+# SCORE.Trans.NonCog_sc      0.208268342 2.136085e-02 1179  9.75000307 1.182153e-21
 
-#write.table(EA_bothparents_coef, "Estimates_Trios_NTR_EA_20200511.csv", quote=F )
+#write.table(EA_bothparents_coef, "Estimates_Trios_NTR_EA_20200531.csv", quote=F )
 
 total_NonCog <- EA_bothparents_coef[5,1] # total is transmitted
 total_Cog <- EA_bothparents_coef[4,1]
 indirect_NonCog <- EA_bothparents_coef[3,1] #indirect is nontransmitted
 indirect_Cog <- EA_bothparents_coef[2,1]
-direct_NonCog <- total_NonCog - indirect_NonCog #0.058472
-direct_Cog <- total_Cog - indirect_Cog #0.07475011
-ratio_NonCog <- indirect_NonCog/direct_NonCog  #1.436308
-ratio_Cog <- indirect_Cog/direct_Cog  #1.118841
-ratio_tot_NonCog <- indirect_NonCog/total_NonCog #0.5895428
-ratio_tot_Cog <- indirect_Cog/total_Cog #0.528044
+direct_NonCog <- total_NonCog - indirect_NonCog 
+direct_Cog <- total_Cog - indirect_Cog 
+ratio_NonCog <- indirect_NonCog/direct_NonCog  
+ratio_Cog <- indirect_Cog/direct_Cog  
+ratio_tot_NonCog <- indirect_NonCog/total_NonCog 
+ratio_tot_Cog <- indirect_Cog/total_Cog 
 
 
 # * * * 3.2.1.1 Bootstrapping ------
@@ -942,11 +963,11 @@ bootcoef<-function(data,index){
 boot.out<-boot(datatriosEA, bootcoef, nboot, parallel = "multicore", ncpus=20) 
 boot.out
 
-#saveRDS(boot.out, "bootstrapped_output_trios_NTR_EA_20200511.Rda")
-#boot.out <- readRDS("bootstrapped_output_trios_NTR_EA_20200511.Rda")
+#saveRDS(boot.out, "bootstrapped_output_trios_NTR_EA_20200531.Rda")
+#boot.out <- readRDS("bootstrapped_output_trios_NTR_EA_20200531.Rda")
 
 # Plot to check bootstrapping
-png("NTR.trios.EA.bootstrap_lme.png",
+png("NTR.trios.EA.bootstrap_lme_20200531.png",
     width = 10,
     height = 6,
     units = 'in',
@@ -958,7 +979,7 @@ dev.off()
 bootoutput <- as.data.frame(boot.out$t)
 colnames(bootoutput) <- rownames(as.data.frame(boot.out$t0))
 head(bootoutput)
-#write.table(bootoutput, "Data_scores_trios_NTR_EA_bootstrapped_20200511.csv", row.names=F, quote=F)
+#write.table(bootoutput, "Data_scores_trios_NTR_EA_bootstrapped_20200531.csv", row.names=F, quote=F)
 
 # Get values out of boot.out for all estimates + create direct and ratio estimates
 original <- as.data.frame(t(boot.out$t0)) # estimates of the original sample #best estimates of the effects
@@ -999,7 +1020,7 @@ statsoutput
 tot <- statsoutput[,c(ncol(statsoutput), 1:(ncol(statsoutput)-1))]
 tot
 
-#write.table(tot, "summary_mean_CI_trios_NTR_EA_20200511.csv", row.names=T, quote=F)
+#write.table(tot, "summary_mean_CI_trios_NTR_EA_20200531.csv", row.names=T, quote=F)
 
 # * * * 3.2.1.2  Comparing estimates ------
 
@@ -1019,6 +1040,12 @@ P_diffcog <- 2*pnorm(-abs(Z_diffcog))
 P_diffnoncog <- 2*pnorm(-abs(Z_diffnoncog))
 P_diffratio <- 2*pnorm(-abs(Z_diffratio))
 
+compare <- cbind(Z_diffcog, P_diffcog, Z_diffnoncog, P_diffnoncog, Z_diffratio, P_diffratio)
+
+#write.table(compare, "Ztests_trio_NTR_EA_20200531.csv", row.names=T, quote=F)
+
+
+
 # * * 3.2.2 Difference between parents -----
 
 summary(lm(EA_sc ~ SCORE.Nontrans.Dad.Cog_sc + SCORE.Nontrans.Mom.Cog_sc + 
@@ -1034,12 +1061,14 @@ datatriosCITO <- datatrios[!is.na(datatrios$CITO_sc),]
 datatriosCITO <- datatriosCITO[order(datatriosCITO$FamilyNumber),] 
 
 # Sample descriptive 
-length(unique(datatriosCITO$FamilyNumber)) #765
-nrow(datatriosCITO[sex==1]) #674 male
-nrow(datatriosCITO[sex==2]) #852 female 
 summary(datatriosCITO$sex)
-674+852
-674/1526
+
+length(unique(datatriosCITO$FamilyNumber)) #765
+nrow(datatriosCITO[datatriosCITO$sex==1,]) #674 male
+nrow(datatriosCITO[datatriosCITO$sex==2,]) #852 female 
+nrow(datatriosCITO[datatriosCITO$sex==1,])/ (nrow(datatriosCITO[datatriosCITO$sex==1,]) + nrow(datatriosCITO[datatriosCITO$sex==2,]))
+#0.4416776 
+
 summary(datatriosCITO$yob)
 # Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
 # 1984    1989    1991    1992    1994    2002  
@@ -1048,13 +1077,6 @@ summary(datatriosCITO$cito_final)
 # Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
 # 507.0   534.0   541.0   539.1   545.0   550.0 
 sd(datatriosCITO$cito_final) #8.050127
-
-cor(datatriosCITO$SCORE.Nontrans.Dad.Cog, datatriosCITO$SCORE.Trans.Dad.Cog) # 0.02685697
-cor(datatriosCITO$SCORE.Nontrans.Mom.Cog, datatriosCITO$SCORE.Trans.Mom.Cog) # 0.00466349
-cor(datatriosCITO$SCORE.Nontrans.Dad.NonCog, datatriosCITO$SCORE.Trans.Dad.NonCog) # 0.06068394
-cor(datatriosCITO$SCORE.Nontrans.Mom.NonCog, datatriosCITO$SCORE.Trans.Mom.NonCog) # 0.02895511
-cor(datatriosCITO$SCORE.Nontrans.Cog_sc, datatriosCITO$SCORE.Trans.Cog_sc) #0.05353203
-cor(datatriosCITO$SCORE.Nontrans.NonCog_sc, datatriosCITO$SCORE.Trans.NonCog_sc) #0.0745213
 
 
 # * * 3.3.1 Analyses CITO with PGS from both parents pulled together -------
@@ -1076,11 +1098,12 @@ colnames(CITO_bothparents_coef) <- c("Estimate", "naive_SE", "naive_Z", "robust_
 CITO_bothparents_coef$Pval <- 2*pnorm(-abs(CITO_bothparents_coef$robust_Z))
 
 # Estimate    naive_SE    naive_Z   robust_SE   robust_Z         Pval
-# (Intercept)              28.12470779 45.89728140  0.6127750 45.84512542  0.6134722 5.395642e-01
-# SCORE.Nontrans.Cog_sc     0.01581185  0.02050492  0.7711248  0.02091467  0.7560171 4.496390e-01
-# SCORE.Nontrans.NonCog_sc  0.02486621  0.02018873  1.2316879  0.02078278  1.1964818 2.315086e-01
-# SCORE.Trans.Cog_sc        0.17341861  0.02096710  8.2709867  0.02109865  8.2194155 2.044973e-16
-# SCORE.Trans.NonCog_sc     0.13380771  0.02021092  6.6205657  0.02061364  6.4912229 8.514240e-11
+# (Intercept)              28.15338316 45.90337193  0.6133184 45.84667645  0.6140769 5.391645e-01
+# SCORE.Nontrans.Cog_sc     0.02223799  0.02899614  0.7669292  0.02956270  0.7522313 4.519120e-01
+# SCORE.Nontrans.NonCog_sc  0.03532489  0.02868183  1.2316122  0.02952472  1.1964511 2.315206e-01
+# SCORE.Trans.Cog_sc        0.24648284  0.02988042  8.2489763  0.03004625  8.2034480 2.335888e-16
+# SCORE.Trans.NonCog_sc     0.19129179  0.02891837  6.6148883  0.02948181  6.4884688 8.671311e-11
+# sex                      -3.14529483 27.40242138 -0.1147816 28.68876163 -0.1096351 9.126988e-01
 
 # with lme
 CITO_bothparents_lme <- lme(CITO_sc ~ SCORE.Nontrans.Cog_sc + SCORE.Nontrans.NonCog_sc + 
@@ -1094,14 +1117,14 @@ CITO_bothparents_lme <- lme(CITO_sc ~ SCORE.Nontrans.Cog_sc + SCORE.Nontrans.Non
 
 CITO_bothparents_coef <- summary(CITO_bothparents_lme)$tTable
 CITO_bothparents_coef
-# Value    Std.Error  DF      t-value      p-value
-# (Intercept)               30.781855996  45.67037620 764  0.674000491 5.005149e-01
-# SCORE.Nontrans.Cog_sc      0.015249917   0.02063496 743  0.739033069 4.601203e-01
-# SCORE.Nontrans.NonCog_sc   0.023512527   0.02029745 743  1.158398112 2.470738e-01
-# SCORE.Trans.Cog_sc         0.173913210   0.02108268 743  8.249104774 7.242193e-16
-# SCORE.Trans.NonCog_sc      0.135007171   0.02031540 743  6.645557509 5.844153e-11
+# Value    Std.Error  DF     t-value      p-value
+# (Intercept)               30.825940595  45.67605629 764  0.67488183 4.999550e-01
+# SCORE.Nontrans.Cog_sc      0.021426282   0.02918063 743  0.73426386 4.630196e-01
+# SCORE.Nontrans.NonCog_sc   0.033392411   0.02883703 743  1.15796993 2.472484e-01
+# SCORE.Trans.Cog_sc         0.247163802   0.03004616 743  8.22613736 8.634499e-16
+# SCORE.Trans.NonCog_sc      0.193004072   0.02906860 743  6.63960644 6.071255e-11
 
-write.table(CITO_bothparents_coef, "Estimates_Trios_NTR_CITO_20200511.csv", quote=F )
+#write.table(CITO_bothparents_coef, "Estimates_Trios_NTR_CITO_20200531.csv", quote=F )
 
 # Extract estimates
 total_NonCog <- CITO_bothparents_coef[5,1] # total is transmitted
@@ -1144,11 +1167,11 @@ bootcoef<-function(data,index){
 
 boot.out<-boot(datatriosCITO, bootcoef, nboot, parallel = "multicore", ncpus=20) 
 boot.out
-#saveRDS(boot.out, "bootstrapped_output_trios_NTR_CITO_20200511.Rda")
-#boot.out <- readRDS("bootstrapped_output_trios_NTR_CITO_20200511.Rda")
+#saveRDS(boot.out, "bootstrapped_output_trios_NTR_CITO_20200531.Rda")
+#boot.out <- readRDS("bootstrapped_output_trios_NTR_CITO_20200531.Rda")
 
 # Plot to check bootstrapping
-png("NTR.trios.CITO.bootstrap_lme.png",
+png("NTR.trios.CITO.bootstrap_lme_2020531.png",
     width = 10,
     height = 6,
     units = 'in',
@@ -1160,8 +1183,8 @@ dev.off()
 bootoutput <- as.data.frame(boot.out$t)
 colnames(bootoutput) <- rownames(as.data.frame(boot.out$t0))
 head(bootoutput)
-write.table(bootoutput, "Data_scores_trios_NTR_CITO_bootstrapped_20200511.csv", 
-            row.names=F, quote=F)
+#write.table(bootoutput, "Data_scores_trios_NTR_CITO_bootstrapped_20200531.csv", 
+#            row.names=F, quote=F)
 
 # Get values out of boot.out for all estimates + create direct and ratio estimates
 original <- as.data.frame(t(boot.out$t0)) # estimates of the original sample #best estimates of the effects
@@ -1203,7 +1226,7 @@ statsoutput
 tot <- statsoutput[,c(ncol(statsoutput), 1:(ncol(statsoutput)-1))]
 tot
 
-#write.table(tot, "summary_mean_CI_trios_NTR_CITO_20200511.csv", row.names=T, quote=F)
+#write.table(tot, "summary_mean_CI_trios_NTR_CITO_20200531.csv", row.names=T, quote=F)
 
 # * * * 3.3.1.2  Comparing estimates ------
 
@@ -1222,6 +1245,10 @@ Z_diffratio <- diffratio/SD_sampling_diffratio
 P_diffcog <- 2*pnorm(-abs(Z_diffcog))
 P_diffnoncog <- 2*pnorm(-abs(Z_diffnoncog))
 P_diffratio <- 2*pnorm(-abs(Z_diffratio))
+
+
+compare <- cbind(Z_diffcog, P_diffcog, Z_diffnoncog, P_diffnoncog, Z_diffratio, P_diffratio)
+#write.table(compare, "Ztests_trio_NTR_CITO_20200531.csv", row.names=T, quote=F)
 
 
 # * * 3.3.2 Analyses with PGS from parents separately  -------
