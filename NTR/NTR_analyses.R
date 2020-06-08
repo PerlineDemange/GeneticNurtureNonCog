@@ -233,7 +233,8 @@ head(data)
 summary(data$Platform) 
 
 datasib <- data
-write.table(datasib, "Data_siblings_NTR_20200531.csv", row.names=F, quote=F)
+#write.table(datasib, "Data_siblings_NTR_20200531.csv", row.names=F, quote=F)
+
 
 # * 2.2 Sibling analysis with EA ==========================
 # * * 2.2.1 Clean data and scale variables ------
@@ -288,7 +289,7 @@ hist(finalsib$EA_sc)
 
 ## Save data
 #write.table(finalsib, "Data_siblings_NTR_EA_20200531.csv", row.names=F, quote=F)
-#finalsib <- fread("Data_siblings_NTR_EA_20200531.csv")
+#finalsib <- fread("Data_siblings_NTR_EA_20200531.csv", colClasses=c("FISNumber"="character"))
 # head(finalsib)
 
 
@@ -330,6 +331,9 @@ finalsib<-merge(finalsib,meanC,by="FamilyNumber")
 # Within-family estimates
 finalsib$GPS_W_NonCog <- finalsib$scoreNonCog_sc  - finalsib$GPS_B_NonCog  
 finalsib$GPS_W_Cog <- finalsib$scoreCog_sc  - finalsib$GPS_B_Cog  
+
+cor.test(finalsib$GPS_W_NonCog, finalsib$GPS_B_NonCog) #-6.097644e-18 p=1
+cor.test(finalsib$GPS_W_Cog, finalsib$GPS_B_Cog) #3.261838e-18  p=1
 
 
 # * * 2.2.4 Run mixed model between-within regression -----
@@ -534,7 +538,7 @@ hist(finalsib$scoreCog_sc)
 
 ## Save data
 # write.table(finalsib, "Data_siblings_NTR_CITO_20200511.csv", row.names=F, quote=F)
-# finalsib <- fread("Data_siblings_NTR_CITO_20200511.csv")
+#finalsib <- fread("Data_siblings_NTR_CITO_20200511.csv", colClasses=c("FISNumber"="character"))
 
 
 # * * 2.3.2 ICC  -----
@@ -564,6 +568,10 @@ finalsib<-merge(finalsib,meanC,by="FamilyNumber")
 # Within-family estimates
 finalsib$GPS_W_NonCog <- finalsib$scoreNonCog_sc  - finalsib$GPS_B_NonCog  
 finalsib$GPS_W_Cog <- finalsib$scoreCog_sc  - finalsib$GPS_B_Cog  
+
+cor.test(finalsib$GPS_W_NonCog, finalsib$GPS_B_NonCog) #-2.231701e-18  p=1
+cor.test(finalsib$GPS_W_Cog, finalsib$GPS_B_Cog) #8.14536e-18  p=1
+
 
 # * * 2.3.4 Run mixed model between-within regression ------------------
 final <- lme(CITO_sc~GPS_B_NonCog + GPS_B_Cog + GPS_W_NonCog + GPS_W_Cog + 
@@ -855,12 +863,10 @@ datatriosEA <- datatrios[!is.na(datatrios$EA_sc),]
 
 summary(datatriosEA$sex) # there is one participant with -9 
 datatriosEA <- datatriosEA[datatriosEA$sex>0, ]
-
 #new sample size is 2534
 
 fameatrio <- unique(datatriosEA$FamilyNumber)
 length(unique(datatriosEA$FamilyNumber)) #1337
-
 
 nrow(datatriosEA[datatriosEA$sex==1,]) #902 male
 nrow(datatriosEA[datatriosEA$sex==2,]) #1632 female 
@@ -876,6 +882,15 @@ summary(datatriosEA$Eduyears)
 # 7.00   13.00   19.00   16.16   19.00   19.00  
 sd(datatriosEA$Eduyears) #3.425723
 
+cor(datatriosEA$SCORE.Nontrans.NonCog, datatriosEA$SCORE.Nontrans.Cog) #-0.2821807
+cor(datatriosEA$SCORE.Trans.NonCog, datatriosEA$SCORE.Trans.Cog)# -0.2749023
+
+cor.test(datatriosEA$SCORE.Nontrans.NonCog, datatriosEA$SCORE.Trans.NonCog) # 0.02224433 p=0.263
+cor.test(datatriosEA$SCORE.Nontrans.Cog, datatriosEA$SCORE.Trans.Cog)# 0.003770773  p=0.8495
+
+# Overlap with sibling subset
+# be careful the finalsib data loaded is EA only and not CITO
+overlap <- merge(finalsib, datatriosEA, by="FISNumber") #1374
 
 # * * 3.2.1 Analyses EA with PGS from both parents pulled together -------
 
@@ -1078,6 +1093,16 @@ summary(datatriosCITO$cito_final)
 # 507.0   534.0   541.0   539.1   545.0   550.0 
 sd(datatriosCITO$cito_final) #8.050127
 
+
+cor(datatriosCITO$SCORE.Nontrans.NonCog, datatriosCITO$SCORE.Nontrans.Cog) #-0.2452256
+cor(datatriosCITO$SCORE.Trans.NonCog, datatriosCITO$SCORE.Trans.Cog) # -0.26376
+
+cor.test(datatriosCITO$SCORE.Nontrans.NonCog, datatriosCITO$SCORE.Trans.NonCog) # 0.07442533 p=0.003626
+cor.test(datatriosCITO$SCORE.Nontrans.Cog, datatriosCITO$SCORE.Trans.Cog) # 0.05357893 p=0.03637
+
+# Overlap with sibling subset
+# be careful the finalsib data loaded is CITO only and not EA
+overlap <- merge(finalsib, datatriosCITO, by="FISNumber") #823
 
 # * * 3.3.1 Analyses CITO with PGS from both parents pulled together -------
 
