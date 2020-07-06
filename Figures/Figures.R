@@ -13,6 +13,8 @@ siblings <- as.data.frame(siblings)
 siblings$Measure <- row.names(siblings)
 siblings$Methods <- "Siblings_UKB"
 siblings$pheno <- "EA"
+siblings$Zscore <- siblings$original/siblings$se
+siblings$pvalue <- 2*pnorm(-abs(siblings$Zscore))
 
 adoption <- read.table("UKB/Adoptees/summary_mean_CI_adoption_UKB_20200529.csv")
 rownames(adoption) <- adoption$Estimates
@@ -22,7 +24,8 @@ adoption <- as.data.frame(adoption)
 adoption$Measure <- row.names(adoption)
 adoption$Methods <- "Adoption_UKB"
 adoption$pheno <- "EA"
-head(adoption)
+adoption$Zscore <- adoption$original/adoption$se
+adoption$pvalue <- 2*pnorm(-abs(adoption$Zscore))
 
 ntrsib <- read.table("NTR/summary_mean_CI_siblings_NTR_EA_20200531.csv")
 rownames(ntrsib) <- ntrsib$Estimates
@@ -32,8 +35,8 @@ ntrsib <- as.data.frame(ntrsib)
 ntrsib$Measure <- row.names(ntrsib)
 ntrsib$Methods <- "Siblings_NTR"
 ntrsib$pheno <- "EA"
-#ntrsib$Zscore <- ntrsib$original/ntrsib$se
-#ntrsib$pvalue <- 2*pnorm(-abs(ntrsib$Zscore))
+ntrsib$Zscore <- ntrsib$original/ntrsib$se
+ntrsib$pvalue <- 2*pnorm(-abs(ntrsib$Zscore))
 
 ntrsibcito <- read.table("NTR/summary_mean_CI_siblings_NTR_CITO_20200511.csv")
 rownames(ntrsibcito) <- ntrsibcito$Estimates
@@ -43,6 +46,8 @@ ntrsibcito <- as.data.frame(ntrsibcito)
 ntrsibcito$Measure <- row.names(ntrsibcito)
 ntrsibcito$Methods <- "Siblings_NTR"
 ntrsibcito$pheno <- "CITO"
+ntrsibcito$Zscore <- ntrsibcito$original/ntrsibcito$se
+ntrsibcito$pvalue <- 2*pnorm(-abs(ntrsibcito$Zscore))
 
 ntrtrioea <- read.table("NTR/summary_mean_CI_trios_NTR_EA_20200531.csv")
 rownames(ntrtrioea) <- ntrtrioea$Estimates
@@ -52,6 +57,8 @@ ntrtrioea <- as.data.frame(ntrtrioea)
 ntrtrioea$Measure <- row.names(ntrtrioea)
 ntrtrioea$Methods <- "Trios_NTR"
 ntrtrioea$pheno <- "EA"
+ntrtrioea$Zscore <- ntrtrioea$original/ntrtrioea$se
+ntrtrioea$pvalue <- 2*pnorm(-abs(ntrtrioea$Zscore))
 
 ntrtriocito <- read.table("NTR/summary_mean_CI_trios_NTR_CITO_20200531.csv")
 rownames(ntrtriocito) <- ntrtriocito$Estimates
@@ -61,9 +68,35 @@ ntrtriocito <- as.data.frame(ntrtriocito)
 ntrtriocito$Measure <- row.names(ntrtriocito)
 ntrtriocito$Methods <- "Trios_NTR"
 ntrtriocito$pheno <- "CITO"
+ntrtriocito$Zscore <- ntrtriocito$original/ntrtriocito$se
+ntrtriocito$pvalue <- 2*pnorm(-abs(ntrtriocito$Zscore))
+
+tedstwin12 <- read.table("TEDS/summary_mean_CI_siblings_TEDS_12_270520.csv")
+rownames(tedstwin12) <- tedstwin12$Estimates
+tedstwin12$Estimates <- NULL
+tedstwin12 <- t(tedstwin12)
+tedstwin12 <- as.data.frame(tedstwin12)
+tedstwin12$Measure <- row.names(tedstwin12)
+tedstwin12$Methods <- "Siblings_TEDS"
+tedstwin12$pheno <- "12yo"
+tedstwin12$Zscore <- tedstwin12$original/tedstwin12$se
+tedstwin12$pvalue <- 2*pnorm(-abs(tedstwin12$Zscore))
+
+tedstwinGCSE <- read.table("TEDS/summary_mean_CI_siblings_TEDS_GCSE_270520.csv")
+rownames(tedstwinGCSE) <- tedstwinGCSE$Estimates
+tedstwinGCSE$Estimates <- NULL
+tedstwinGCSE <- t(tedstwinGCSE)
+tedstwinGCSE <- as.data.frame(tedstwinGCSE)
+tedstwinGCSE$Measure <- row.names(tedstwinGCSE)
+tedstwinGCSE$Methods <- "Siblings_TEDS"
+tedstwinGCSE$pheno <- "GCSE"
+tedstwinGCSE$Zscore <- tedstwinGCSE$original/tedstwinGCSE$se
+tedstwinGCSE$pvalue <- 2*pnorm(-abs(tedstwinGCSE$Zscore))
 
 
-data <- rbind(siblings, adoption, ntrsib, ntrsibcito, ntrtrioea, ntrtriocito)
+
+
+data <- rbind(siblings, adoption, ntrsib, ntrsibcito, ntrtrioea, ntrtriocito, tedstwin12, tedstwinGCSE)
 head(data)
 library(stringr)
 # Limit to the Measures we want 
@@ -86,16 +119,20 @@ for(i in 1:nC) {
 }
 head(data)
 
-write.table(data, "dataforfigures_20200531.csv", quote=F, row.names=T)
-data <- read.table("dataforfigures_20200531.csv", header=T)
-
 #add pvalue in data
 data$Zscore <- data$original/data$se
 data$pvalue <- 2*pnorm(-abs(data$Zscore))
 
-data$pvaluebonf <- p.adjust(data$pvalue, "bonferroni")
-data$pvaluebonf
+write.table(data, "dataforfigures_20200607.csv", quote=F, row.names=T)
+#data <- read.table("dataforfigures_20200531.csv", header=T)
 
+cogonly <- data[data$PRS == "Cog", ]
+noncogonly <- data[data$PRS == "NonCog", ]
+reshaped <- cbind(cogonly, noncogonly)
+reshaped$pvalue_bonf <- p.adjust(reshaped$pvalue, "bonferroni")
+head(reshaped)
+
+write.table(reshaped, "datafortable_20200607.csv", quote=F, row.names=T)
 
 library(ggplot2)
 data$Type <- factor(data$Type, 
