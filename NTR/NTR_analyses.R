@@ -234,7 +234,7 @@ summary(data$Platform)
 
 datasib <- data
 #write.table(datasib, "Data_siblings_NTR_20200531.csv", row.names=F, quote=F)
-
+#datasib <- fread("Data_siblings_NTR_20200531.csv", colClasses=c("FISNumber"="character"))
 
 # * 2.2 Sibling analysis with EA ==========================
 # * * 2.2.1 Clean data and scale variables ------
@@ -504,7 +504,7 @@ summary(finalsib$sex)
 nrow(finalsib[finalsib$sex==1,]) #734 male
 nrow(finalsib[finalsib$sex==2,]) #897 female 
 nrow(finalsib[finalsib$sex==1,]) / (nrow(finalsib[finalsib$sex==1,]) +nrow(finalsib[finalsib$sex==2,]))
-# 0.4500301
+# 0.4500307
 
 summary(finalsib$yob)
 # Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
@@ -533,6 +533,8 @@ finalsib[,c("CITO_sc","scoreNonCog_sc", "scoreCog_sc")]<-apply(finalsib[,c("cito
 # check how data looks 
 hist(finalsib$cito_final)
 hist(finalsib$CITO_sc)
+mean(finalsib$CITO_sc)
+var(finalsib$CITO_sc)
 hist(finalsib$SCORE.Cog)
 hist(finalsib$scoreCog_sc)
 
@@ -1193,7 +1195,7 @@ bootcoef<-function(data,index){
 boot.out<-boot(datatriosCITO, bootcoef, nboot, parallel = "multicore", ncpus=20) 
 boot.out
 #saveRDS(boot.out, "bootstrapped_output_trios_NTR_CITO_20200531.Rda")
-#boot.out <- readRDS("bootstrapped_output_trios_NTR_CITO_20200531.Rda")
+boot.out <- readRDS("bootstrapped_output_trios_NTR_CITO_20200531.Rda")
 
 # Plot to check bootstrapping
 png("NTR.trios.CITO.bootstrap_lme_2020531.png",
