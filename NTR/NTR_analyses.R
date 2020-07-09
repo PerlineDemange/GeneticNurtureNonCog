@@ -237,7 +237,7 @@ datasib <- data
 #datasib <- fread("Data_siblings_NTR_20200531.csv", colClasses=c("FISNumber"="character"))
 
 # * 2.2 Sibling analysis with EA ==========================
-# * * 2.2.1 Clean data and scale variables ------
+# * * 2.2.1 Clean data  ------
 # Keep only data with EA
 datasibEA <- datasib[!is.na(datasib$Eduyears),] #3672
 head(datasibEA)
@@ -279,7 +279,15 @@ summary(finalsib$SCORE.NonCog)
 # -2.917e-07 -1.372e-07 -9.382e-08 -9.349e-08 -5.049e-08  1.109e-07 
 cor(finalsib$SCORE.NonCog,finalsib$SCORE.Cog) # -0.2999655
 
-# Scale variables
+# Correlation between siblings
+
+finalsib2 <- finalsib[order(finalsib$FamilyNumber),] 
+
+groupfam<-group_by(finalsib,FamilyNumber) %>% summarize(m=cor())
+
+
+# * * 2.2.3 Scale data  ------
+
 finalsib[,c("EA_sc","scoreNonCog_sc", "scoreCog_sc")]<-apply(finalsib[,c("Eduyears",
                                                                          "SCORE.NonCog", 
                                                                          "SCORE.Cog")],
@@ -293,7 +301,7 @@ hist(finalsib$EA_sc)
 # head(finalsib)
 
 
-# * * 2.2.2 ICC  -----
+# * * 2.2.4 ICC  -----
 # ICC: functions written by Saskia Selzam, from Selzam et al. 2019
 #calculate intraclass correlations
 #i.e.  The ICC is the ratio of the between-family (i.e., random intercept) variance over the total variance 
@@ -309,17 +317,33 @@ m0 <- lme(EA_sc~1,
           method="ML", 
           na.action=na.omit,
           data=finalsib)
-ICCest(m0) #get ICC #0.4362076
+ICCest(m0) #get ICC #0.4362072
+
+m0 <- lme(SCORE.Cog~1, 
+          random=~1|FamilyNumber, 
+          method="ML", 
+          na.action=na.omit,
+          data=finalsib)
+ICCest(m0) 
 
 
-# * * 2.2.2 Simple linear model -----
+m0 <- lme(SCORE.NonCog~1, 
+          random=~1|FamilyNumber, 
+          method="ML", 
+          na.action=na.omit,
+          data=finalsib)
+ICCest(m0) 
+
+
+
+# * * 2.2.5 Simple linear model -----
 
 global <- lm(EA_sc ~ scoreNonCog_sc + scoreCog_sc + sex + yob + sex*yob + 
                Platform + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, 
              data=finalsib)
 summary(global)
 
-# * * 2.2.3 Create between-family and within-family estimates of PGS -----
+# * * 2.2.6 Create between-family and within-family estimates of PGS -----
 # Between-family estimate = average per family
 meanNC<-group_by(finalsib,FamilyNumber) %>% summarize(m=mean(scoreNonCog_sc))
 colnames(meanNC) <- c("FamilyNumber", "GPS_B_NonCog")
@@ -336,7 +360,7 @@ cor.test(finalsib$GPS_W_NonCog, finalsib$GPS_B_NonCog) #-6.097644e-18 p=1
 cor.test(finalsib$GPS_W_Cog, finalsib$GPS_B_Cog) #3.261838e-18  p=1
 
 
-# * * 2.2.4 Run mixed model between-within regression -----
+# * * 2.2.7 Run mixed model between-within regression -----
 final <- lme(EA_sc~GPS_B_NonCog + GPS_B_Cog + GPS_W_NonCog + GPS_W_Cog + 
                sex + yob + sex*yob +
                Platform + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10,
@@ -371,7 +395,7 @@ ratio_tot_NonCog <- indirect_NonCog/total_NonCog
 ratio_tot_Cog <- indirect_Cog/total_Cog 
 
 
-# * * 2.2.5 Bootstrapping ------
+# * * 2.2.8 Bootstrapping ------
 nboot <- 10000
 bootcoef<-function(data,index){
   datx<-data[index,]
@@ -457,7 +481,7 @@ tot
 
 write.table(tot, "summary_mean_CI_siblings_NTR_EA_20200531.csv", row.names=T, quote=F)
 
-# * * 2.2.6  Comparing estimates ------
+# * * 2.2.9  Comparing estimates ------
 
 diffcog <- original$direct_Cog - original$indirect_Cog 
 diffnoncog <- original$direct_NonCog - original$indirect_NonCog
@@ -549,7 +573,23 @@ m0 <- lme(CITO_sc~1,
           method="ML", 
           na.action=na.omit,
           data=finalsib)
-ICCest(m0) #get ICC #0.4113067
+ICCest(m0) #get ICC #0.4113066
+
+m0 <- lme(SCORE.Cog~1, 
+          random=~1|FamilyNumber, 
+          method="ML", 
+          na.action=na.omit,
+          data=finalsib)
+ICCest(m0) 
+
+
+m0 <- lme(SCORE.NonCog~1, 
+          random=~1|FamilyNumber, 
+          method="ML", 
+          na.action=na.omit,
+          data=finalsib)
+ICCest(m0) 
+
 
 
 # * * 2.3.2 Simple linear model -----
@@ -861,7 +901,7 @@ hist(datatrios$EA_sc)
 
 datatriosEA <- datatrios[!is.na(datatrios$EA_sc),]
 
-# Sample descriptive 
+# * * 3.2.1 Sample descriptive -------
 
 summary(datatriosEA$sex) # there is one participant with -9 
 datatriosEA <- datatriosEA[datatriosEA$sex>0, ]
@@ -890,11 +930,26 @@ cor(datatriosEA$SCORE.Trans.NonCog, datatriosEA$SCORE.Trans.Cog)# -0.2749023
 cor.test(datatriosEA$SCORE.Nontrans.NonCog, datatriosEA$SCORE.Trans.NonCog) # 0.02224433 p=0.263
 cor.test(datatriosEA$SCORE.Nontrans.Cog, datatriosEA$SCORE.Trans.Cog)# 0.003770773  p=0.8495
 
+# Get PGS for parents for correlation score between parents 
+
+datatriosEA$SCORE.Dad.Cog <- (datatriosEA$SCORE.Nontrans.Dad.Cog 
+                              + datatriosEA$SCORE.Trans.Dad.Cog)/2
+datatriosEA$SCORE.Dad.NonCog <- (datatriosEA$SCORE.Nontrans.Dad.NonCog 
+                                 + datatriosEA$SCORE.Trans.Dad.NonCog)/2
+datatriosEA$SCORE.Mom.Cog <- (datatriosEA$SCORE.Nontrans.Mom.Cog 
+                              + datatriosEA$SCORE.Trans.Mom.Cog)/2
+datatriosEA$SCORE.Mom.NonCog <- (datatriosEA$SCORE.Nontrans.Mom.NonCog
+                                 + datatriosEA$SCORE.Trans.Mom.NonCog)/2
+
+cor.test(datatriosEA$SCORE.Dad.Cog, datatriosEA$SCORE.Mom.Cog) # 0.00358434 p = 0.8569
+cor.test(datatriosEA$SCORE.Dad.NonCog, datatriosEA$SCORE.Mom.NonCog) # 0.03194523 p= 0.1079
+
+
 # Overlap with sibling subset
 # be careful the finalsib data loaded is EA only and not CITO
 overlap <- merge(finalsib, datatriosEA, by="FISNumber") #1374
 
-# * * 3.2.1 Analyses EA with PGS from both parents pulled together -------
+# * * 3.2.2 Analyses EA with PGS from both parents pulled together -------
 
 #With gee: might lead to issues when bootstrapping
 EA_bothparents <- gee(EA_sc ~ SCORE.Nontrans.Cog_sc + SCORE.Nontrans.NonCog_sc + 
@@ -952,7 +1007,7 @@ ratio_tot_NonCog <- indirect_NonCog/total_NonCog
 ratio_tot_Cog <- indirect_Cog/total_Cog 
 
 
-# * * * 3.2.1.1 Bootstrapping ------
+# * * * 3.2.2.1 Bootstrapping ------
 nboot <- 10000
 # gee doesn't always converge when bootstrapping
 # bootcoef<-function(data,index){
@@ -1039,7 +1094,7 @@ tot
 
 #write.table(tot, "summary_mean_CI_trios_NTR_EA_20200531.csv", row.names=T, quote=F)
 
-# * * * 3.2.1.2  Comparing estimates ------
+# * * * 3.2.2.2  Comparing estimates ------
 
 diffcog <- original$direct_Cog - original$indirect_Cog 
 diffnoncog <- original$direct_NonCog - original$indirect_NonCog
@@ -1063,7 +1118,7 @@ compare <- cbind(Z_diffcog, P_diffcog, Z_diffnoncog, P_diffnoncog, Z_diffratio, 
 
 
 
-# * * 3.2.2 Difference between parents -----
+# * * 3.2.3 Difference between parents -----
 
 summary(lm(EA_sc ~ SCORE.Nontrans.Dad.Cog_sc + SCORE.Nontrans.Mom.Cog_sc + 
              SCORE.Trans.Dad.Cog_sc + SCORE.Trans.Mom.Cog_sc + 
@@ -1077,7 +1132,7 @@ summary(is.na(datatrios$CITO_sc)) # data for 1526
 datatriosCITO <- datatrios[!is.na(datatrios$CITO_sc),]
 datatriosCITO <- datatriosCITO[order(datatriosCITO$FamilyNumber),] 
 
-# Sample descriptive 
+# * * 3.3.1 Sample descriptive --------------
 summary(datatriosCITO$sex)
 
 length(unique(datatriosCITO$FamilyNumber)) #765
@@ -1102,11 +1157,40 @@ cor(datatriosCITO$SCORE.Trans.NonCog, datatriosCITO$SCORE.Trans.Cog) # -0.26376
 cor.test(datatriosCITO$SCORE.Nontrans.NonCog, datatriosCITO$SCORE.Trans.NonCog) # 0.07442533 p=0.003626
 cor.test(datatriosCITO$SCORE.Nontrans.Cog, datatriosCITO$SCORE.Trans.Cog) # 0.05357893 p=0.03637
 
+# Get PGS for parents for correlation score between parents 
+
+datatriosEA$SCORE.Dad.Cog <- (datatriosEA$SCORE.Nontrans.Dad.Cog 
+                              + datatriosEA$SCORE.Trans.Dad.Cog)/2
+datatriosEA$SCORE.Dad.NonCog <- (datatriosEA$SCORE.Nontrans.Dad.NonCog 
+                                 + datatriosEA$SCORE.Trans.Dad.NonCog)/2
+datatriosEA$SCORE.Mom.Cog <- (datatriosEA$SCORE.Nontrans.Mom.Cog 
+                              + datatriosEA$SCORE.Trans.Mom.Cog)/2
+datatriosEA$SCORE.Mom.NonCog <- (datatriosEA$SCORE.Nontrans.Mom.NonCog
+                                 + datatriosEA$SCORE.Trans.Mom.NonCog)/2
+
+cor.test(datatriosEA$SCORE.Dad.Cog, datatriosEA$SCORE.Mom.Cog) # 0.00358434 p = 0.8569
+cor.test(datatriosEA$SCORE.Dad.NonCog, datatriosEA$SCORE.Mom.NonCog) # 0.03194523 p= 0.1079
+
+# Get PGS for parents for correlation score between parents 
+
+datatriosCITO$SCORE.Dad.Cog <- (datatriosCITO$SCORE.Nontrans.Dad.Cog 
+                              + datatriosCITO$SCORE.Trans.Dad.Cog)/2
+datatriosCITO$SCORE.Dad.NonCog <- (datatriosCITO$SCORE.Nontrans.Dad.NonCog 
+                                 + datatriosCITO$SCORE.Trans.Dad.NonCog)/2
+datatriosCITO$SCORE.Mom.Cog <- (datatriosCITO$SCORE.Nontrans.Mom.Cog 
+                              + datatriosCITO$SCORE.Trans.Mom.Cog)/2
+datatriosCITO$SCORE.Mom.NonCog <- (datatriosCITO$SCORE.Nontrans.Mom.NonCog
+                                 + datatriosCITO$SCORE.Trans.Mom.NonCog)/2
+
+cor.test(datatriosCITO$SCORE.Dad.Cog, datatriosCITO$SCORE.Mom.Cog) # 0.01854552 p= 0.4691
+cor.test(datatriosCITO$SCORE.Dad.NonCog, datatriosCITO$SCORE.Mom.NonCog) # 0.02997036 p= 0.242
+
+
 # Overlap with sibling subset
 # be careful the finalsib data loaded is CITO only and not EA
 overlap <- merge(finalsib, datatriosCITO, by="FISNumber") #823
 
-# * * 3.3.1 Analyses CITO with PGS from both parents pulled together -------
+# * * 3.3.2 Analyses CITO with PGS from both parents pulled together -------
 
 #with gee #not used for the bootstrapped 
 CITO_bothparents <- gee(CITO_sc ~ SCORE.Nontrans.Cog_sc + SCORE.Nontrans.NonCog_sc + 
@@ -1165,7 +1249,7 @@ ratio_Cog <- indirect_Cog/direct_Cog
 ratio_tot_NonCog <- indirect_NonCog/total_NonCog 
 ratio_tot_Cog <- indirect_Cog/total_Cog 
 
-# * * * 3.3.1.1 Bootstrapping ------
+# * * * 3.3.2.1 Bootstrapping ------
 nboot <- 10000
 
 # Bootstrapping with gee is not really reliable, several iterations do not converge
@@ -1255,7 +1339,7 @@ tot
 
 #write.table(tot, "summary_mean_CI_trios_NTR_CITO_20200531.csv", row.names=T, quote=F)
 
-# * * * 3.3.1.2  Comparing estimates ------
+# * * * 3.3.2.2  Comparing estimates ------
 
 diffcog <- original$direct_Cog - original$indirect_Cog 
 diffnoncog <- original$direct_NonCog - original$indirect_NonCog
@@ -1278,7 +1362,7 @@ compare <- cbind(Z_diffcog, P_diffcog, Z_diffnoncog, P_diffnoncog, Z_diffratio, 
 #write.table(compare, "Ztests_trio_NTR_CITO_20200531.csv", row.names=T, quote=F)
 
 
-# * * 3.3.2 Analyses with PGS from parents separately  -------
+# * * 3.3.3 Analyses with PGS from parents separately  -------
 CITO <- gee(cito_final ~ SCORE.Nontrans.Dad.Cog_sc + SCORE.Nontrans.Mom.Cog_sc + 
               SCORE.Trans.Dad.Cog_sc + SCORE.Trans.Mom.Cog_sc + 
               SCORE.Nontrans.Dad.NonCog_sc + SCORE.Nontrans.Mom.NonCog_sc + 
@@ -1295,6 +1379,341 @@ head(CITO_coef)
 colnames(CITO_coef) <- c("Estimate", "naive_SE", "naive_Z", "robust_SE", "robust_Z")
 CITO_coef$Pval <- 2*pnorm(-abs(CITO_coef$robust_Z))
 
+# * 3.4 Sibling effects using trios data  =========
+head(datatrios) #7448
+
+# * * 3.4.1 Remove MZ: we can not use pairs that are only MZ because their PGS is identical ------------------------------------
+# Get all multiple 
+multiple <- datatrios[which(datatrios$Extension > 0 & datatrios$Extension <6),] #5758
+label.val$twzyg
+summary(multiple$twzyg) # 22 NAs
+MZ <- multiple[which(multiple$twzyg == 1 | multiple$twzyg == 3),] #3125
+DZ <- multiple[which(multiple$twzyg == 2 | multiple$twzyg > 3),] #2611
+summary(DZ$multiple_type)
+
+# to look if we want to include all sib not only dz 
+
+# # Investigate NAs in zygosity
+# # Get multiple with family zygosity being MZ (while zygosity is na)
+# MZ_multipleNa <- multiple[is.na(multiple$twzyg),][which(multiple[is.na(multiple$twzyg),]$famzyg == 1 |
+#                                                           multiple[is.na(multiple$twzyg),]$famzyg == 3),]
+# head(MZ_multipleNa) # all of them are part of triplets # 8
+# 
+# MZ <- rbind(MZ, MZ_multipleNa) #6673
+# 
+# # Keep one MZ per pair
+# 
+# oneMZ <- MZ %>% group_by(FamilyNumber) %>% sample_n(1) # take at random one of MZ per family 
+# oneMZ <- as.data.frame(oneMZ)
+# a <- unique(oneMZ$FamilyNumber) #1600, same as oneMZ so only one per family 
+# pickoneMZ <- oneMZ$FISNumber
+# datawithrestMZ <- MZ[!which(MZ$FISNumber %in% pickoneMZ),] #1533
+# datawithrestMZvec <- datawithrestMZ$FISNumber
+# dataoneMZ <- datatrios[!which(datatrios$FISNumber %in% datawithrestMZvec),] # 5915
+# 
+# number <- as.data.frame(table(dataoneMZ$FamilyNumber))
+# number
+# onemember <- number[which(number$Freq == 1),] #identify family with only one member in this data #1375
+# head(onemember)
+# list_onemember <- onemember$Var1 
+# dataoneMZ_sibonly<- dataoneMZ[!which(dataoneMZ$FamilyNumber %in% list_onemember), ] #4540
+# head(dataoneMZ_sibonly)
+# 
+# datatrios_sib <- dataoneMZ_sibonly #4540
+# 
+# 
+# # Keep only two sibling per family 
+#   
+# number <- as.data.frame(table(datatrios_DZ$FamilyNumber))
+# 
+# onemember <- number[which(number$Freq == 2),]
+# as.data.frame(table(datatrios_sib$FamilyNumber))
+# 
+# 
+
+# use only DZ to investigate sibling effect
+
+datatrios_DZ <- DZ
+number <- as.data.frame(table(datatrios_DZ$FamilyNumber))
+twomember <- number[which(number$Freq == 2),]
+list_twomember <- twomember$Var1
+data2DZ <- datatrios_DZ[which(datatrios_DZ$FamilyNumber %in% list_twomember),] #2352
+
+head(data2DZ)
+summary(data2DZ$mult_ext)
+First <- data2DZ[data2DZ$mult_ext == 1,]
+Second <- data2DZ[data2DZ$mult_ext == 2,]
+
+# merge with pgs of sb 
+PGS_sib1 <- select(First, FamilyNumber,SCORE.Trans.Cog_sc, SCORE.Trans.NonCog_sc)
+PGS_sib2 <- select(Second, FamilyNumber,SCORE.Trans.Cog_sc, SCORE.Trans.NonCog_sc)
+
+datasib1 <- merge(First, PGS_sib2, by="FamilyNumber", suffixes= c(".sib1", ".sib2"))
+datasib2 <- merge(Second, PGS_sib1, by="FamilyNumber", suffixes= c(".sib1", ".sib2"))
+
+datatrios_sibef <- rbind(datasib1, datasib2) #2352
 
 
 
+# * * 3.4.2 Analyses for CITO  ------------------------
+datatrios_sibCITO <- datatrios_sibef[!is.na(datatrios_sibef$CITO_sc),] #N=675
+
+
+
+CITO_sib <- lme(CITO_sc ~ SCORE.Nontrans.Cog_sc + SCORE.Nontrans.NonCog_sc + 
+                              SCORE.Trans.Cog_sc.sib1 + SCORE.Trans.NonCog_sc.sib1 +
+                              SCORE.Trans.Cog_sc.sib2 + SCORE.Trans.NonCog_sc.sib2 +
+                              sex + yob + sex*yob + 
+                              Platform + PC1 + PC2 + PC3 + 
+                              PC4 + PC5 + PC6 + PC7 + PC8 +
+                              PC9 + PC10, 
+                            random=~1|FamilyNumber, 
+                            method="ML", 
+                            na.action=na.omit, 
+                            data=datatrios_sibCITO)
+summary(CITO_sib)
+
+
+# Value Std.Error  DF   t-value p-value
+# (Intercept)                  65.42895  66.46980 350  0.984341  0.3256
+# SCORE.Nontrans.Cog_sc         0.05489   0.05995 304  0.915637  0.3606
+# SCORE.Nontrans.NonCog_sc      0.11810   0.06136 304  1.924593  0.0552
+# SCORE.Trans.Cog_sc.sib1       0.28979   0.04913 304  5.898455  0.0000
+# SCORE.Trans.NonCog_sc.sib1    0.22796   0.04734 304  4.815766  0.0000
+# SCORE.Trans.Cog_sc.sib2      -0.03062   0.05899 304 -0.518987  0.6041
+# SCORE.Trans.NonCog_sc.sib2   -0.12360   0.05987 304 -2.064666  0.0398
+# sex                         -55.27748  40.65144 304 -1.359791  0.1749
+# yob                          -0.03598   0.03336 350 -1.078440  0.2816
+# Platform                      0.04088   0.02270 304  1.800638  0.0728
+# PC1                         -95.39372 215.21511 304 -0.443248  0.6579
+# PC2                        -181.04460 119.22414 304 -1.518523  0.1299
+# PC3                        -134.67633  72.72497 304 -1.851858  0.0650
+# PC4                           8.19976  61.11062 304  0.134179  0.8933
+# PC5                           0.15258  16.01305 304  0.009528  0.9924
+# PC6                          -3.14360  30.15814 304 -0.104237  0.9170
+# PC7                         -16.90077  29.78232 304 -0.567477  0.5708
+# PC8                         -11.33701  25.53134 304 -0.444043  0.6573
+# PC9                         -19.17351  19.03751 304 -1.007144  0.3147
+# PC10                        -23.94537  14.93810 304 -1.602973  0.1100
+# sex:yob                       0.02766   0.02041 304  1.355171  0.1764
+
+
+# * * 3.4.2 Analyses for EA  ------------------------
+datatrios_sibEA <- datatrios_sibef[!is.na(datatrios_sibef$EA_sc),] #N=788
+
+EA_sib <- lme(EA_sc ~ SCORE.Nontrans.Cog_sc + SCORE.Nontrans.NonCog_sc + 
+                  SCORE.Trans.Cog_sc.sib1 + SCORE.Trans.NonCog_sc.sib1 +
+                  SCORE.Trans.Cog_sc.sib2 + SCORE.Trans.NonCog_sc.sib2 +
+                  sex + yob + sex*yob + 
+                  Platform + PC1 + PC2 + PC3 + 
+                  PC4 + PC5 + PC6 + PC7 + PC8 +
+                  PC9 + PC10, 
+                random=~1|FamilyNumber, 
+                method="ML", 
+                na.action=na.omit, 
+                data=datatrios_sibCITO)
+summary(EA_sib)
+
+# Value Std.Error  DF    t-value p-value
+# (Intercept)                 -93.54892  349.5560 109 -0.2676221  0.7895
+# SCORE.Nontrans.Cog_sc         0.09688    0.0973  38  0.9961848  0.3255
+# SCORE.Nontrans.NonCog_sc     -0.11171    0.0933  38 -1.1972855  0.2386
+# SCORE.Trans.Cog_sc.sib1       0.22343    0.1021  38  2.1893293  0.0348
+# SCORE.Trans.NonCog_sc.sib1    0.25410    0.0876  38  2.9019036  0.0061
+# SCORE.Trans.Cog_sc.sib2       0.00993    0.1136  38  0.0874778  0.9308
+# SCORE.Trans.NonCog_sc.sib2   -0.10560    0.1025  38 -1.0298739  0.3096
+# sex                         191.53139  209.0543  38  0.9161800  0.3654
+# yob                           0.05069    0.1761 109  0.2879094  0.7740
+# Platform                      0.02472    0.0516  38  0.4787616  0.6349
+# PC1                         300.42995  362.1784  38  0.8295082  0.4120
+# PC2                         290.61600  207.4233  38  1.4010770  0.1693
+# PC3                        -122.73918  126.8437  38 -0.9676411  0.3393
+# PC4                         -96.52209  123.1582  38 -0.7837246  0.4381
+# PC5                          18.13065   25.7377  38  0.7044395  0.4855
+# PC6                          50.23529   48.0467  38  1.0455505  0.3024
+# PC7                         -59.20936   53.9678  38 -1.0971243  0.2795
+# PC8                          77.94357   47.4549  38  1.6424757  0.1087
+# PC9                          27.49711   36.4454  38  0.7544732  0.4552
+# PC10                         21.05410   23.8657  38  0.8821894  0.3832
+# sex:yob                      -0.09637    0.1051  38 -0.9167282  0.3651
+
+
+# 4.  Siblings analyses #####################################
+
+
+## Run '1. Load Data' again ##
+
+head(pheno)
+
+
+# * 4.1 Get data for MZ and DZ ===============================
+
+# Add scores 
+noncog <- fread("Scores_NTR/ForPerlineNonAndCogInfMRG10Scores/MRG10_ALL_NONCOG_CEULDpred_inf.profile", 
+                header=T, stringsAsFactors =F, colClasses=c("IID"="character"))
+
+cog <- fread("Scores_NTR/ForPerlineNonAndCogInfMRG10Scores/MRG10_ALL_COG_CEULDpred_inf.profile", 
+             header=T, stringsAsFactors =F, colClasses=c("IID"="character"))
+
+scores <- merge(noncog, cog, by= c("FID", "IID", "PHENO", "CNT", "CNT2"), 
+                suffixes = c( ".NonCog", ".Cog"))
+
+
+datasib <- merge(pheno, scores, by.x = "FISNumber", by.y= "IID")
+datasib <- merge(datasib, cov, by.x= "FISNumber", by.y= "ID")
+datasib <- as.data.frame(datasib)
+
+datasib$SCORE.Cog <- -1 * datasib$SCORE.Cog
+datasib$SCORE.NonCog <- -1 * datasib$SCORE.NonCog
+
+# Scale data
+datasib[,c("EA_sc",
+            "CITO_sc", 
+            "scoreNonCog_sc", 
+            "scoreCog_sc")]<-apply(datasib[,c("Eduyears", 
+                                               "cito_final", 
+                                               "SCORE.NonCog", 
+                                               "SCORE.Cog")],
+                                    2,
+                                    scale)
+
+
+
+# Get MZ only and Dz only 
+multiple <- datasib[which(datasib$Extension > 0 & datasib$Extension <6),] #12701
+MZ <- multiple[which(multiple$twzyg == 1 | multiple$twzyg == 3),] #6969
+DZ <- multiple[which(multiple$twzyg == 2 | multiple$twzyg > 3),] #5657
+
+
+# * 4.2 Analyses =====
+# * * 4.2.1 EA -----------------
+MZ_EA <- MZ[!is.na(MZ$EA_sc), ] #2912
+
+EA_MZlm <- lme(EA_sc ~ scoreCog_sc + scoreNonCog_sc + 
+                            sex + yob + sex*yob + 
+                            Platform + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, 
+                          random=~1|FamilyNumber, 
+                          method="ML", 
+                          na.action=na.omit, 
+                          data=MZ_EA)
+summary(EA_MZlm)
+
+# Value Std.Error   DF   t-value p-value
+# (Intercept)     18.89016  10.53490 1763  1.793102  0.0731
+# scoreCog_sc      0.20097   0.02025 1132  9.922651  0.0000
+# scoreNonCog_sc   0.22381   0.02065 1132 10.840396  0.0000
+# sex            -32.35768   5.88870 1132 -5.494879  0.0000
+# yob             -0.00772   0.00527 1132 -1.463916  0.1435
+# Platform         0.01809   0.00976 1763  1.852927  0.0641
+# PC1            172.94524  96.17001 1132  1.798328  0.0724
+# PC2             35.48309  44.85675 1132  0.791031  0.4291
+# PC3              8.82469  32.74913 1132  0.269463  0.7876
+# PC4             28.86454  29.16421 1132  0.989725  0.3225
+# PC5             11.46566   7.66035 1763  1.496755  0.1346
+# PC6            -22.63726  15.13742 1132 -1.495450  0.1351
+# PC7             16.94962  14.84308 1132  1.141921  0.2537
+# PC8            -14.14748  12.19589 1132 -1.160021  0.2463
+# PC9             18.00188   9.96847 1132  1.805881  0.0712
+# PC10            -2.66250   7.21663 1132 -0.368940  0.7122
+# sex:yob          0.01633   0.00298 1132  5.474765  0.0000
+
+
+EA_MZ_Cog <- summary(EA_MZlm)$tTable[2,1]
+EA_MZ_NonCog <- summary(EA_MZlm)$tTable[3,1]
+
+DZ_EA <- DZ[!is.na(DZ$EA_sc), ] #2286
+
+EA_DZlm <- lme(EA_sc ~ scoreCog_sc + scoreNonCog_sc + 
+                 sex + yob + sex*yob + 
+                 Platform + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, 
+               random=~1|FamilyNumber, 
+               method="ML", 
+               na.action=na.omit, 
+               data=DZ_EA)
+summary(EA_DZlm)
+
+# Value Std.Error   DF   t-value p-value
+# (Intercept)    -12.65384  10.47527 1544 -1.207973  0.2272
+# scoreCog_sc      0.19389   0.01922  725 10.088334  0.0000
+# scoreNonCog_sc   0.20827   0.01938  725 10.746800  0.0000
+# sex            -18.77371   5.96621  725 -3.146673  0.0017
+# yob              0.00660   0.00523  725  1.261645  0.2075
+# Platform        -0.00119   0.00918  725 -0.129407  0.8971
+# PC1            -66.18869  91.54332  725 -0.723031  0.4699
+# PC2             -0.03008  42.29781  725 -0.000711  0.9994
+# PC3             72.88434  30.41875  725  2.396033  0.0168
+# PC4             12.51846  26.94477  725  0.464597  0.6424
+# PC5            -10.57900   7.18239  725 -1.472908  0.1412
+# PC6             -0.53906  13.95765  725 -0.038621  0.9692
+# PC7            -16.25049  13.19861  725 -1.231227  0.2186
+# PC8              3.74149  11.38432  725  0.328653  0.7425
+# PC9             16.67443   9.04827  725  1.842831  0.0658
+# PC10            11.36836   6.74129  725  1.686377  0.0922
+# sex:yob          0.00949   0.00302  725  3.140627  0.0018
+
+
+EA_DZ_Cog <- summary(EA_DZlm)$tTable[2,1]
+EA_DZ_NonCog <- summary(EA_DZlm)$tTable[3,1]
+
+# * * 4.2.2 CITO -----------------
+
+MZ_CITO <- MZ[!is.na(MZ$CITO_sc), ] #1537
+
+CITO_MZlm <- lme(CITO_sc ~ scoreCog_sc + scoreNonCog_sc + 
+                 sex + yob + sex*yob + 
+                 Platform + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, 
+               random=~1|FamilyNumber, 
+               method="ML", 
+               na.action=na.omit, 
+               data=MZ_CITO)
+summary(CITO_MZlm)
+
+# Value Std.Error  DF   t-value p-value
+# (Intercept)     -74.76908  61.02647 835 -1.225191  0.2208
+# scoreCog_sc       0.21779   0.03372 835  6.458739  0.0000
+# scoreNonCog_sc    0.17726   0.03288 835  5.391259  0.0000
+# sex              56.56329  36.04647 835  1.569177  0.1170
+# yob               0.03777   0.03055 835  1.236378  0.2167
+# Platform          0.04255   0.01502 835  2.832710  0.0047
+# PC1            -218.29285 154.81495 835 -1.410024  0.1589
+# PC2              72.90008  65.13254 835  1.119257  0.2634
+# PC3             -30.23768  53.60781 835 -0.564054  0.5729
+# PC4               8.35245  47.18142 835  0.177028  0.8595
+# PC5              -1.54493  12.88643 835 -0.119888  0.9046
+# PC6             -15.81629  23.06092 835 -0.685848  0.4930
+# PC7             -26.56120  23.57220 835 -1.126802  0.2601
+# PC8             -15.32936  20.04672 835 -0.764681  0.4447
+# PC9              21.83468  15.20513 835  1.436007  0.1514
+# PC10            -22.77291  11.40546 835 -1.996667  0.0462
+# sex:yob          -0.02849   0.01810 835 -1.573971  0.1159
+
+
+DZ_CITO <- DZ[!is.na(DZ$CITO_sc), ] #1565
+
+CITO_DZlm <- lme(CITO_sc ~ scoreCog_sc + scoreNonCog_sc + 
+                 sex + yob + sex*yob + 
+                 Platform + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, 
+               random=~1|FamilyNumber, 
+               method="ML", 
+               na.action=na.omit, 
+               data=DZ_CITO)
+summary(EA_DZlm)
+
+# Value Std.Error   DF   t-value p-value
+# (Intercept)    -12.65384  10.47527 1544 -1.207973  0.2272
+# scoreCog_sc      0.19389   0.01922  725 10.088334  0.0000
+# scoreNonCog_sc   0.20827   0.01938  725 10.746800  0.0000
+# sex            -18.77371   5.96621  725 -3.146673  0.0017
+# yob              0.00660   0.00523  725  1.261645  0.2075
+# Platform        -0.00119   0.00918  725 -0.129407  0.8971
+# PC1            -66.18869  91.54332  725 -0.723031  0.4699
+# PC2             -0.03008  42.29781  725 -0.000711  0.9994
+# PC3             72.88434  30.41875  725  2.396033  0.0168
+# PC4             12.51846  26.94477  725  0.464597  0.6424
+# PC5            -10.57900   7.18239  725 -1.472908  0.1412
+# PC6             -0.53906  13.95765  725 -0.038621  0.9692
+# PC7            -16.25049  13.19861  725 -1.231227  0.2186
+# PC8              3.74149  11.38432  725  0.328653  0.7425
+# PC9             16.67443   9.04827  725  1.842831  0.0658
+# PC10            11.36836   6.74129  725  1.686377  0.0922
+# sex:yob          0.00949   0.00302  725  3.140627  0.0018
