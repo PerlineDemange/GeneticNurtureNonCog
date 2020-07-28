@@ -1157,19 +1157,6 @@ cor(datatriosCITO$SCORE.Trans.NonCog, datatriosCITO$SCORE.Trans.Cog) # -0.26376
 cor.test(datatriosCITO$SCORE.Nontrans.NonCog, datatriosCITO$SCORE.Trans.NonCog) # 0.07442533 p=0.003626
 cor.test(datatriosCITO$SCORE.Nontrans.Cog, datatriosCITO$SCORE.Trans.Cog) # 0.05357893 p=0.03637
 
-# Get PGS for parents for correlation score between parents 
-
-datatriosEA$SCORE.Dad.Cog <- (datatriosEA$SCORE.Nontrans.Dad.Cog 
-                              + datatriosEA$SCORE.Trans.Dad.Cog)/2
-datatriosEA$SCORE.Dad.NonCog <- (datatriosEA$SCORE.Nontrans.Dad.NonCog 
-                                 + datatriosEA$SCORE.Trans.Dad.NonCog)/2
-datatriosEA$SCORE.Mom.Cog <- (datatriosEA$SCORE.Nontrans.Mom.Cog 
-                              + datatriosEA$SCORE.Trans.Mom.Cog)/2
-datatriosEA$SCORE.Mom.NonCog <- (datatriosEA$SCORE.Nontrans.Mom.NonCog
-                                 + datatriosEA$SCORE.Trans.Mom.NonCog)/2
-
-cor.test(datatriosEA$SCORE.Dad.Cog, datatriosEA$SCORE.Mom.Cog) # 0.00358434 p = 0.8569
-cor.test(datatriosEA$SCORE.Dad.NonCog, datatriosEA$SCORE.Mom.NonCog) # 0.03194523 p= 0.1079
 
 # Get PGS for parents for correlation score between parents 
 
@@ -1380,6 +1367,7 @@ colnames(CITO_coef) <- c("Estimate", "naive_SE", "naive_Z", "robust_SE", "robust
 CITO_coef$Pval <- 2*pnorm(-abs(CITO_coef$robust_Z))
 
 # * 3.4 Sibling effects using trios data  =========
+#datatrios <- fread("Data_trios_NTR_20200531.csv", header=T, colClasses=c("FISNumber"="character"))
 head(datatrios) #7448
 
 # * * 3.4.1 Remove MZ: we can not use pairs that are only MZ because their PGS is identical ------------------------------------

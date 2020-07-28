@@ -2,6 +2,10 @@
 # PRS analysis of sib comparison in UKBiobank
 # 24.02.20 - 30-03-2020
 
+# Get interactive node on LISA
+#ssh pdemange@login4.lisa.surfsara.nl
+#srun -N 1 -t 24:00:00 --pty bash
+
 #/////////////////////////////////////////////////////////////////////////#/////////////////////////////////////////////////////////////////////////#/////////////////////////////////////////////////////////////////////////
 ####################
 # Make sibling id
@@ -156,7 +160,8 @@ cor(finalsib$scoreNoNCogrev,finalsib$scoreCogrev) # -0.2613102
 ############################################
 
 # linear model
-global <- lm(EA_sc ~ scoreNonCog_sc + scoreCog_sc + sex + array + Age + sex*Age + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, data=finalsib)
+global <- lm(EA_sc ~ scoreNonCog_sc + scoreCog_sc + sex + array + Age + sex*Age + 
+               PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, data=finalsib)
 summary(global)
 
 
@@ -174,6 +179,21 @@ ICCest <- function(model) {
 # intercept model
 m0 <- lme(EA_sc~1, random=~1|FID, method="ML", na.action=na.omit,data=finalsib)
 ICCest(m0) #get ICC #0.3258229
+
+m0 <- lme(scoreNoNCogrev~1, 
+          random=~1|FID, 
+          method="ML", 
+          na.action=na.omit,
+          data=finalsib)
+ICCest(m0) # 0.5255507  #when using standardized measure, found 0.5255509
+
+
+m0 <- lme(scoreCog_sc~1, 
+          random=~1|FID, 
+          method="ML", 
+          na.action=na.omit,
+          data=finalsib) #convergence issue when not standardized, use standardized 
+ICCest(m0) #0.5292896
 
 
 # Create between family estimates of PGS: average across family member
@@ -193,10 +213,17 @@ finalsib<-merge(finalsib,meanC,by="FID")
 finalsib$GPS_W_NonCog <- finalsib$scoreNonCog_sc  - finalsib$GPS_B_NonCog  
 finalsib$GPS_W_Cog <- finalsib$scoreCog_sc  - finalsib$GPS_B_Cog  
 
+cor.test(finalsib$GPS_W_NonCog, finalsib$GPS_B_NonCog) #-7.066594e-19 p=1
+cor.test(finalsib$GPS_W_Cog, finalsib$GPS_B_Cog) #7.562188e-19  p=1
+
+
 # Mixed effects model
 ######################
 
-final <- lme(EA_sc~GPS_B_NonCog + GPS_B_Cog + GPS_W_NonCog + GPS_W_Cog + sex + array + Age + sex*Age + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, random=~1|FID, method="ML", na.action=na.omit,data=finalsib)
+final <- lme(EA_sc~GPS_B_NonCog + GPS_B_Cog + GPS_W_NonCog + GPS_W_Cog +
+               sex + array + Age + sex*Age + 
+               PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, 
+             random=~1|FID, method="ML", na.action=na.omit,data=finalsib)
 summary(final)
 
 
