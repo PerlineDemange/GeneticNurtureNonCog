@@ -944,6 +944,12 @@ datatriosEA$SCORE.Mom.NonCog <- (datatriosEA$SCORE.Nontrans.Mom.NonCog
 cor.test(datatriosEA$SCORE.Dad.Cog, datatriosEA$SCORE.Mom.Cog) # 0.00358434 p = 0.8569
 cor.test(datatriosEA$SCORE.Dad.NonCog, datatriosEA$SCORE.Mom.NonCog) # 0.03194523 p= 0.1079
 
+# Phenotypic correlation of parental EA 
+# data available for both parents is educat_c 
+hist(datatriosEA$dad_educat_c)
+summary(datatriosEA$dad_educat_c) #missing 238
+summary(datatriosEA$mum_educat_c) #missing 273
+cor.test(datatriosEA$dad_educat_c, datatriosEA$mum_educat_c) #cor=0.5964049 p< 2.2e-16
 
 # Overlap with sibling subset
 # be careful the finalsib data loaded is EA only and not CITO
@@ -1172,6 +1178,12 @@ datatriosCITO$SCORE.Mom.NonCog <- (datatriosCITO$SCORE.Nontrans.Mom.NonCog
 cor.test(datatriosCITO$SCORE.Dad.Cog, datatriosCITO$SCORE.Mom.Cog) # 0.01854552 p= 0.4691
 cor.test(datatriosCITO$SCORE.Dad.NonCog, datatriosCITO$SCORE.Mom.NonCog) # 0.02997036 p= 0.242
 
+# Phenotypic correlation of parental EA 
+# data available for both parents is educat_c 
+hist(datatriosCITO$dad_educat_c)
+summary(datatriosCITO$dad_educat_c) #missing 115
+summary(datatriosCITO$mum_educat_c) #missing 87
+cor.test(datatriosCITO$dad_educat_c, datatriosCITO$mum_educat_c) #cor=0.448819  p< 2.2e-16
 
 # Overlap with sibling subset
 # be careful the finalsib data loaded is CITO only and not EA
@@ -1572,136 +1584,260 @@ multiple <- datasib[which(datasib$Extension > 0 & datasib$Extension <6),] #12701
 MZ <- multiple[which(multiple$twzyg == 1 | multiple$twzyg == 3),] #6969
 DZ <- multiple[which(multiple$twzyg == 2 | multiple$twzyg > 3),] #5657
 
+# Get one MZ and DZ per family 
+
+oneMZ <- MZ %>% group_by(FamilyNumber) %>% sample_n(1) # take at random one of MZ per family 
+oneMZ <- as.data.frame(oneMZ)
+head(oneMZ)
+oneDZ <- DZ %>% group_by(FamilyNumber) %>% sample_n(1) # take at random one of DZ per family 
+oneDZ <- as.data.frame(oneDZ)
+
+
 
 # * 4.2 Analyses =====
 # * * 4.2.1 EA -----------------
-MZ_EA <- MZ[!is.na(MZ$EA_sc), ] #2912
+MZ_EA <- oneMZ[!is.na(oneMZ$EA_sc), ] #1600
+DZ_EA <- oneDZ[!is.na(oneDZ$EA_sc), ] #1369
 
-EA_MZlm <- lme(EA_sc ~ scoreCog_sc + scoreNonCog_sc + 
-                            sex + yob + sex*yob + 
-                            Platform + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, 
-                          random=~1|FamilyNumber, 
-                          method="ML", 
-                          na.action=na.omit, 
-                          data=MZ_EA)
+
+# * * 4.2.1.1 Descriptive -----------
+
+hist(MZ_EA$Eduyears)
+summary(MZ_EA$Eduyears)
+summary(MZ_EA$dad_educat_c)
+summary(MZ_EA$mum_educat_c)
+hist(DZ_EA$Eduyears)
+summary(DZ_EA$Eduyears)
+summary(DZ_EA$dad_educat_c)
+summary(DZ_EA$mum_educat_c)
+
+t.test(MZ_EA$Eduyears, DZ_EA$Eduyears)
+# Welch Two Sample t-test
+# 
+# data:  MZ_EA$Eduyears and DZ_EA$Eduyears
+# t = 0.96679, df = 2913.5, p-value = 0.3337
+# alternative hypothesis: true difference in means is not equal to 0
+# 95 percent confidence interval:
+#   -0.1342649  0.3954446
+# sample estimates:
+#   mean of x mean of y 
+# 15.79750  15.66691 
+
+
+# * * 4.2.1.2 Effect of PGS ---------------
+
+EA_MZlm <- lm(EA_sc ~ scoreCog_sc + scoreNonCog_sc + 
+                sex + yob + sex*yob + 
+                Platform + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, 
+              data=MZ_EA)
 summary(EA_MZlm)
 
-# Value Std.Error   DF   t-value p-value
-# (Intercept)     18.89016  10.53490 1763  1.793102  0.0731
-# scoreCog_sc      0.20097   0.02025 1132  9.922651  0.0000
-# scoreNonCog_sc   0.22381   0.02065 1132 10.840396  0.0000
-# sex            -32.35768   5.88870 1132 -5.494879  0.0000
-# yob             -0.00772   0.00527 1132 -1.463916  0.1435
-# Platform         0.01809   0.00976 1763  1.852927  0.0641
-# PC1            172.94524  96.17001 1132  1.798328  0.0724
-# PC2             35.48309  44.85675 1132  0.791031  0.4291
-# PC3              8.82469  32.74913 1132  0.269463  0.7876
-# PC4             28.86454  29.16421 1132  0.989725  0.3225
-# PC5             11.46566   7.66035 1763  1.496755  0.1346
-# PC6            -22.63726  15.13742 1132 -1.495450  0.1351
-# PC7             16.94962  14.84308 1132  1.141921  0.2537
-# PC8            -14.14748  12.19589 1132 -1.160021  0.2463
-# PC9             18.00188   9.96847 1132  1.805881  0.0712
-# PC10            -2.66250   7.21663 1132 -0.368940  0.7122
-# sex:yob          0.01633   0.00298 1132  5.474765  0.0000
+
+# Estimate Std. Error t value Pr(>|t|)    
+# (Intercept)     16.900012  11.935505   1.416   0.1570    
+# scoreCog_sc      0.195187   0.022696   8.600  < 2e-16 ***
+#   scoreNonCog_sc   0.228498   0.023061   9.908  < 2e-16 ***
+#   sex            -31.064434   6.665799  -4.660 3.42e-06 ***
+#   yob             -0.006231   0.005967  -1.044   0.2965    
+# Platform         0.020286   0.010878   1.865   0.0624 .  
+# PC1            232.152563 106.424236   2.181   0.0293 *  
+#   PC2             51.788403  52.025719   0.995   0.3197    
+# PC3             10.070868  36.866514   0.273   0.7848    
+# PC4             25.284642  32.528683   0.777   0.4371    
+# PC5             11.792327   8.486487   1.390   0.1649    
+# PC6            -19.678610  16.902976  -1.164   0.2445    
+# PC7             25.455806  16.448196   1.548   0.1219    
+# PC8            -13.492659  13.677079  -0.987   0.3240    
+# PC9             23.413032  11.163926   2.097   0.0361 *  
+#   PC10            -0.055084   8.122348  -0.007   0.9946    
+# sex:yob          0.015670   0.003377   4.640 3.76e-06 ***
+# 
 
 
-EA_MZ_Cog <- summary(EA_MZlm)$tTable[2,1]
-EA_MZ_NonCog <- summary(EA_MZlm)$tTable[3,1]
-
-DZ_EA <- DZ[!is.na(DZ$EA_sc), ] #2286
-
-EA_DZlm <- lme(EA_sc ~ scoreCog_sc + scoreNonCog_sc + 
-                 sex + yob + sex*yob + 
-                 Platform + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, 
-               random=~1|FamilyNumber, 
-               method="ML", 
-               na.action=na.omit, 
-               data=DZ_EA)
+EA_DZlm <- lm(EA_sc ~ scoreCog_sc + scoreNonCog_sc + 
+                sex + yob + sex*yob + 
+                Platform + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, 
+              data=DZ_EA)
 summary(EA_DZlm)
 
-# Value Std.Error   DF   t-value p-value
-# (Intercept)    -12.65384  10.47527 1544 -1.207973  0.2272
-# scoreCog_sc      0.19389   0.01922  725 10.088334  0.0000
-# scoreNonCog_sc   0.20827   0.01938  725 10.746800  0.0000
-# sex            -18.77371   5.96621  725 -3.146673  0.0017
-# yob              0.00660   0.00523  725  1.261645  0.2075
-# Platform        -0.00119   0.00918  725 -0.129407  0.8971
-# PC1            -66.18869  91.54332  725 -0.723031  0.4699
-# PC2             -0.03008  42.29781  725 -0.000711  0.9994
-# PC3             72.88434  30.41875  725  2.396033  0.0168
-# PC4             12.51846  26.94477  725  0.464597  0.6424
-# PC5            -10.57900   7.18239  725 -1.472908  0.1412
-# PC6             -0.53906  13.95765  725 -0.038621  0.9692
-# PC7            -16.25049  13.19861  725 -1.231227  0.2186
-# PC8              3.74149  11.38432  725  0.328653  0.7425
-# PC9             16.67443   9.04827  725  1.842831  0.0658
-# PC10            11.36836   6.74129  725  1.686377  0.0922
-# sex:yob          0.00949   0.00302  725  3.140627  0.0018
+# Estimate Std. Error t value Pr(>|t|)    
+# (Intercept)    -1.627e+01  1.351e+01  -1.204   0.2289    
+# scoreCog_sc     1.920e-01  2.400e-02   7.999 2.68e-15 ***
+#   scoreNonCog_sc  2.066e-01  2.461e-02   8.397  < 2e-16 ***
+#   sex            -1.932e+01  7.866e+00  -2.456   0.0142 *  
+#   yob             7.671e-03  6.749e-03   1.137   0.2559    
+# Platform        8.783e-03  1.114e-02   0.789   0.4305    
+# PC1            -1.309e+02  1.133e+02  -1.155   0.2482    
+# PC2            -2.691e+01  5.044e+01  -0.534   0.5938    
+# PC3             5.132e+01  3.782e+01   1.357   0.1750    
+# PC4             1.208e+01  3.396e+01   0.356   0.7221    
+# PC5            -1.650e+01  9.068e+00  -1.819   0.0691 .  
+# PC6            -2.140e+00  1.764e+01  -0.121   0.9035    
+# PC7            -1.609e+01  1.738e+01  -0.925   0.3550    
+# PC8             1.289e+00  1.463e+01   0.088   0.9298    
+# PC9             1.775e+01  1.124e+01   1.580   0.1144    
+# PC10            1.341e+01  8.386e+00   1.599   0.1100    
+# sex:yob         9.765e-03  3.986e-03   2.450   0.0144 *  
 
 
-EA_DZ_Cog <- summary(EA_DZlm)$tTable[2,1]
-EA_DZ_NonCog <- summary(EA_DZlm)$tTable[3,1]
+# * * 4.2.1.2 Bootstrap difference ---------------
+
+nboot <- 10000
+bootmzdzea<-function(data,index){
+  datx<-data[index,]
+  mod<-lm(EA_sc ~ scoreCog_sc + scoreNonCog_sc + 
+            sex + yob + sex*yob + 
+            Platform + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, data=datx)
+  return(mod$coefficients)
+}
+
+
+# carry out bootstrap
+boot.out.mzea<-boot(MZ_EA,bootmzdzea,nboot, parallel = "multicore", ncpus=20)
+boot.out.dzea<-boot(DZ_EA,bootmzdzea,nboot,parallel = "multicore", ncpus=20)
+plot(boot.out.mzea)
+plot(boot.out.dzea)
+
+# Get values out of boot.out for all estimates + create difference
+original.mzea <- as.data.frame(t(boot.out.mzea$t0)) # estimates of the original sample #best estimates of the effects
+original.dzea <- as.data.frame(t(boot.out.dzea$t0))
+bootoutput.mzea <- as.data.frame(boot.out.mzea$t)
+bootoutput.dzea <- as.data.frame(boot.out.dzea$t)
+colnames(bootoutput.mzea) <- rownames(as.data.frame(boot.out.mzea$t0))
+colnames(bootoutput.dzea) <- rownames(as.data.frame(boot.out.dzea$t0))
+
+diff_cog <- original.mzea$scoreCog_sc - original.dzea$scoreCog_sc
+diff_noncog <- original.mzea$scoreNonCog_sc - original.dzea$scoreNonCog_sc
+se_cog <- sd(bootoutput.mzea$scoreCog_sc - bootoutput.dzea$scoreCog_sc)
+se_noncog <- sd(bootoutput.mzea$scoreNonCog_sc - bootoutput.dzea$scoreNonCog_sc)
+z_cog <- diff_cog/se_cog
+z_noncog <- diff_noncog/se_noncog
+P_diffcog <- 2*pnorm(-abs(z_cog))
+P_diffnoncog <- 2*pnorm(-abs(z_noncog))
+
+compare_ea <- as.data.frame(cbind(diff_cog, se_cog, z_cog, P_diffcog, diff_noncog, se_noncog, z_noncog, P_diffnoncog))
+compare_ea$pheno <- "EA"
+compare_ea
 
 # * * 4.2.2 CITO -----------------
 
-MZ_CITO <- MZ[!is.na(MZ$CITO_sc), ] #1537
+MZ_CITO <- oneMZ[!is.na(oneMZ$CITO_sc), ] #818
+DZ_CITO <- oneDZ[!is.na(oneDZ$CITO_sc), ] #865
 
-CITO_MZlm <- lme(CITO_sc ~ scoreCog_sc + scoreNonCog_sc + 
-                 sex + yob + sex*yob + 
-                 Platform + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, 
-               random=~1|FamilyNumber, 
-               method="ML", 
-               na.action=na.omit, 
-               data=MZ_CITO)
+# * * 4.2.2.1 Descriptive -----------
+
+hist(MZ_CITO$cito_final)
+summary(MZ_CITO$cito_final)
+summary(MZ_CITO$dad_educat_c)
+summary(MZ_CITO$mum_educat_c)
+hist(DZ_CITO$cito_final)
+summary(DZ_CITO$cito_final)
+summary(DZ_CITO$dad_educat_c)
+summary(DZ_CITO$mum_educat_c)
+t.test(MZ_CITO$cito_final, DZ_CITO$cito_final)
+# Welch Two Sample t-test
+# 
+# data:  MZ_CITO$cito_final and DZ_CITO$cito_final
+# t = 0.74469, df = 1680.9, p-value = 0.4566
+# alternative hypothesis: true difference in means is not equal to 0
+# 95 percent confidence interval:
+#   -0.4963828  1.1040231
+# sample estimates:
+#   mean of x mean of y 
+# 539.0171  538.7133 
+
+# * * 4.2.2.2 Effect of PGS ---------------
+
+
+CITO_MZlm <- lm(CITO_sc ~ scoreCog_sc + scoreNonCog_sc + 
+                  sex + yob + sex*yob + 
+                  Platform + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, 
+                data=MZ_CITO)
 summary(CITO_MZlm)
 
-# Value Std.Error  DF   t-value p-value
-# (Intercept)     -74.76908  61.02647 835 -1.225191  0.2208
-# scoreCog_sc       0.21779   0.03372 835  6.458739  0.0000
-# scoreNonCog_sc    0.17726   0.03288 835  5.391259  0.0000
-# sex              56.56329  36.04647 835  1.569177  0.1170
-# yob               0.03777   0.03055 835  1.236378  0.2167
-# Platform          0.04255   0.01502 835  2.832710  0.0047
-# PC1            -218.29285 154.81495 835 -1.410024  0.1589
-# PC2              72.90008  65.13254 835  1.119257  0.2634
-# PC3             -30.23768  53.60781 835 -0.564054  0.5729
-# PC4               8.35245  47.18142 835  0.177028  0.8595
-# PC5              -1.54493  12.88643 835 -0.119888  0.9046
-# PC6             -15.81629  23.06092 835 -0.685848  0.4930
-# PC7             -26.56120  23.57220 835 -1.126802  0.2601
-# PC8             -15.32936  20.04672 835 -0.764681  0.4447
-# PC9              21.83468  15.20513 835  1.436007  0.1514
-# PC10            -22.77291  11.40546 835 -1.996667  0.0462
-# sex:yob          -0.02849   0.01810 835 -1.573971  0.1159
+# Estimate Std. Error t value Pr(>|t|)    
+# (Intercept)     -70.55319   65.79847  -1.072   0.2839    
+# scoreCog_sc       0.23299    0.03679   6.333 4.01e-10 ***
+#   scoreNonCog_sc    0.19573    0.03523   5.555 3.78e-08 ***
+#   sex              51.32309   38.79680   1.323   0.1863    
+# yob               0.03622    0.03293   1.100   0.2717    
+# Platform          0.03069    0.01617   1.897   0.0582 .  
+# PC1            -140.44562  166.96190  -0.841   0.4005    
+# PC2              79.87908   69.22207   1.154   0.2489    
+# PC3             -21.97102   57.76944  -0.380   0.7038    
+# PC4              19.20374   50.97728   0.377   0.7065    
+# PC5               1.69520   13.81694   0.123   0.9024    
+# PC6             -25.85026   24.72567  -1.045   0.2961    
+# PC7             -31.36204   25.30551  -1.239   0.2156    
+# PC8             -20.42639   21.37789  -0.955   0.3396    
+# PC9              23.61597   16.25843   1.453   0.1467    
+# PC10            -18.83579   12.13648  -1.552   0.1211    
+# sex:yob          -0.02584    0.01948  -1.326   0.1851    
 
 
-DZ_CITO <- DZ[!is.na(DZ$CITO_sc), ] #1565
+CITO_DZlm <- lm(CITO_sc ~ scoreCog_sc + scoreNonCog_sc + 
+                  sex + yob + sex*yob + 
+                  Platform + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, 
+                data=DZ_CITO)
+summary(CITO_DZlm)
 
-CITO_DZlm <- lme(CITO_sc ~ scoreCog_sc + scoreNonCog_sc + 
-                 sex + yob + sex*yob + 
-                 Platform + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, 
-               random=~1|FamilyNumber, 
-               method="ML", 
-               na.action=na.omit, 
-               data=DZ_CITO)
-summary(EA_DZlm)
+# Estimate Std. Error t value Pr(>|t|)    
+# (Intercept)    -131.53825   63.19349  -2.082  0.03769 *  
+#   scoreCog_sc       0.32234    0.03549   9.083  < 2e-16 ***
+#   scoreNonCog_sc    0.22503    0.03407   6.604 7.05e-11 ***
+#   sex              74.07174   38.85744   1.906  0.05696 .  
+# yob               0.06482    0.03171   2.044  0.04125 *  
+#   Platform          0.04339    0.01618   2.681  0.00747 ** 
+#   PC1            -117.27314  149.69781  -0.783  0.43361    
+# PC2             -31.56328   73.72531  -0.428  0.66867    
+# PC3             -66.09438   56.93804  -1.161  0.24604    
+# PC4              -4.40009   48.22875  -0.091  0.92733    
+# PC5             -10.97225   13.80965  -0.795  0.42711    
+# PC6              25.77026   25.58175   1.007  0.31404    
+# PC7             -19.33197   25.65405  -0.754  0.45132    
+# PC8               1.31936   21.91119   0.060  0.95200    
+# PC9               5.05150   16.37696   0.308  0.75781    
+# PC10            -14.00959   12.34852  -1.135  0.25690    
+# sex:yob          -0.03722    0.01951  -1.908  0.05675 .  
 
-# Value Std.Error   DF   t-value p-value
-# (Intercept)    -12.65384  10.47527 1544 -1.207973  0.2272
-# scoreCog_sc      0.19389   0.01922  725 10.088334  0.0000
-# scoreNonCog_sc   0.20827   0.01938  725 10.746800  0.0000
-# sex            -18.77371   5.96621  725 -3.146673  0.0017
-# yob              0.00660   0.00523  725  1.261645  0.2075
-# Platform        -0.00119   0.00918  725 -0.129407  0.8971
-# PC1            -66.18869  91.54332  725 -0.723031  0.4699
-# PC2             -0.03008  42.29781  725 -0.000711  0.9994
-# PC3             72.88434  30.41875  725  2.396033  0.0168
-# PC4             12.51846  26.94477  725  0.464597  0.6424
-# PC5            -10.57900   7.18239  725 -1.472908  0.1412
-# PC6             -0.53906  13.95765  725 -0.038621  0.9692
-# PC7            -16.25049  13.19861  725 -1.231227  0.2186
-# PC8              3.74149  11.38432  725  0.328653  0.7425
-# PC9             16.67443   9.04827  725  1.842831  0.0658
-# PC10            11.36836   6.74129  725  1.686377  0.0922
-# sex:yob          0.00949   0.00302  725  3.140627  0.0018
+# * * 4.2.1.2 Bootstrap difference ---------------
+
+nboot <- 10000
+bootmzdzcito<-function(data,index){
+  datx<-data[index,]
+  mod<-lm(CITO_sc ~ scoreCog_sc + scoreNonCog_sc + 
+            sex + yob + sex*yob + 
+            Platform + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, data=datx)
+  return(mod$coefficients)
+}
+
+
+# carry out bootstrap
+boot.out.mzcito<-boot(MZ_CITO,bootmzdzcito,nboot, parallel = "multicore", ncpus=20)
+boot.out.dzcito<-boot(DZ_CITO,bootmzdzcito,nboot,parallel = "multicore", ncpus=20)
+plot(boot.out.mzcito)
+plot(boot.out.dzcito)
+
+# Get values out of boot.out for all estimates + create difference
+original.mzcito <- as.data.frame(t(boot.out.mzcito$t0)) # estimates of the original sample #best estimates of the effects
+original.dzcito <- as.data.frame(t(boot.out.dzcito$t0))
+bootoutput.mzcito <- as.data.frame(boot.out.mzcito$t)
+bootoutput.dzcito <- as.data.frame(boot.out.dzcito$t)
+colnames(bootoutput.mzcito) <- rownames(as.data.frame(boot.out.mzcito$t0))
+colnames(bootoutput.dzcito) <- rownames(as.data.frame(boot.out.dzcito$t0))
+
+diff_cog <- original.mzcito$scoreCog_sc - original.dzcito$scoreCog_sc
+diff_noncog <- original.mzcito$scoreNonCog_sc - original.dzcito$scoreNonCog_sc
+se_cog <- sd(bootoutput.mzcito$scoreCog_sc - bootoutput.dzcito$scoreCog_sc)
+se_noncog <- sd(bootoutput.mzcito$scoreNonCog_sc - bootoutput.dzcito$scoreNonCog_sc)
+z_cog <- diff_cog/se_cog
+z_noncog <- diff_noncog/se_noncog
+P_diffcog <- 2*pnorm(-abs(z_cog))
+P_diffnoncog <- 2*pnorm(-abs(z_noncog))
+
+compare_cito <- as.data.frame(cbind(diff_cog, se_cog, z_cog, P_diffcog, diff_noncog, se_noncog, z_noncog, P_diffnoncog))
+compare_cito$pheno <- "CITO"
+compare_cito
+compare <- rbind(compare_ea, compare_cito)
+#write.table(compare, "Ztests_MZDZ_sib_NTR_20200819.csv", row.names=T, quote=F)
+
