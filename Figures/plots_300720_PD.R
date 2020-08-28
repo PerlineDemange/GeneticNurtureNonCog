@@ -19,7 +19,7 @@ all <- read_csv("../Meta-analysis/meta_all_200730.csv")
 all$Effect <- factor(all$Effect, levels=c( "Direct","Indirect"))
 all$PGS <- factor(all$PGS, levels=c("NonCog","Cog"))
 all$PGSxEffect <- paste(all$PGS, all$Effect)
-all$PGSxEffect <- factor(all$PGSxEffect, levels=c("NonCog Direct", "NonCog Indirect", "Cog Direct","Cog Indirect"))
+all$PGSxEffect <- factor(all$PGSxEffect, levels=c("NonCog Direct", "Cog Direct", "NonCog Indirect","Cog Indirect"))
 
 all$blob<-ifelse(all$PGSxEffect=="NonCog Direct",1,
                  ifelse(all$PGSxEffect=="NonCog Indirect",2,
@@ -38,7 +38,7 @@ all$est3<-c( (0.13302074+0.08679965),0.08679965,(0.15872786+0.10410311),0.104103
 # no possiblity to increase spacing in vertical legends 
 # https://stackoverflow.com/questions/11366964/is-there-a-way-to-change-the-spacing-between-legend-items-in-ggplot2
 
-tiff("Fig2A.tiff")
+tiff("Fig2A_200824.tiff")
 plot_A <- ggplot(all,aes(y=estimate, x=PGS, fill=factor(PGSxEffect))) + 
   theme_bw(base_size=14)+
   #coord_flip(ylim = c(0,1))+
@@ -52,7 +52,7 @@ plot_A <- ggplot(all,aes(y=estimate, x=PGS, fill=factor(PGSxEffect))) +
         legend.key.size = unit(3, "lines"), 
         legend.text = element_text(size=14, margin = margin(t=1, b=1, unit="lines")))+
   #scale_fill_manual(values=c( "orange","yellow","blue","light blue"))   +
-  scale_fill_manual(values=c(  "#ff9900","#ffcc66","#0033cc", "#3399ff"))   +
+  scale_fill_manual(values=c(  "#ff9900","#0033cc","#ffcc66", "#3399ff"))   +
   labs(y = "Estimated effect of polygenic score on educational outcome", x = " ") +
   geom_errorbar(aes(ymin = est3-1.96*se, ymax = est3+1.96*se), width = 0.06) +
   scale_y_continuous(breaks = seq(0, 0.30, by = 0.05))
@@ -260,15 +260,15 @@ method$Method[method$Method == "Trios"] <- "Non-transmitted"
 method$Method <- factor(method$Method, c("Siblings", "Adoption", "Non-transmitted"))
 method$PGS <- factor(method$PGS, c("NonCog", "Cog"))
 
-tiff("Fig2C.tiff")
+tiff("Fig2C_200824.tiff")
 plot_C <- 
   ggplot(method, aes(y=estimate, x=Effect)) +
   geom_point(aes(x=Effect, y=estimate, color = interaction(Effect, PGS)), size=7,position = position_dodge(.6))+#,position = position_dodge(4))+
   geom_errorbar(aes(x=Effect,ymin=ci.lb, ymax=ci.ub, color = interaction(Effect, PGS)),  width=.6,size= 1, position = position_dodge(.6)) +#, position=position_dodge(4)) + 
   theme_bw(base_size = 14)+
   theme(axis.title.x=element_blank(),
-        axis.text.x=element_blank(),
-        axis.ticks.x=element_blank(),
+        axis.text.x=element_text(size = 12),
+        #axis.ticks.x=element_blank(),
         axis.text.y=element_text(size = 12),
         strip.text.x = element_text(size = 14), 
         axis.title.y = element_text(size = 14, margin=margin(t=0,r=2, b=0, l=0, unit="lines")),
@@ -282,11 +282,12 @@ plot_C <-
   scale_color_manual(values=c( "#ff9900","#ffcc66", "#0033cc", "#3399ff")) +
   #ggtitle("Per Method, Educational Attainment") +
   geom_hline(yintercept=0, linetype="dashed")+
+  geom_vline(xintercept=1.5, linetype="dotted")+
   scale_shape_manual(values=c(21, 24, 25, 22, 23, 18)) 
 plot_C
 dev.off()
 
-# 3.3 Compare method only including EA not meta ##############
+# 3.4 Compare method only including EA not meta ##############
 
 all <- read.table("../dataforfigures_20200607.csv", stringsAsFactors = FALSE)
 split2 <- str_split_fixed(all$Methods, "_", 2)
@@ -401,7 +402,7 @@ plot <-
   scale_shape_manual(values=c(21, 24, 25, 22, 23, 18))
 plot
 
-# 4.2 Compare child outcome 12yo  only siblings method ###################
+# 4.3 Compare child outcome 12yo  only siblings method ###################
 
 all <- read.table("../dataforfigures_20200607.csv", stringsAsFactors = FALSE)
 split2 <- str_split_fixed(all$Methods, "_", 2)
@@ -435,7 +436,7 @@ plot <-
   scale_shape_manual(values=c(21, 24, 25, 22, 23, 18))
 plot
 
-# 4.2 Compare 12yo and EA  only siblings method ###################
+# 4.4 Compare 12yo and EA  only siblings method ###################
 
 all <- read.table("../dataforfigures_20200607.csv", stringsAsFactors = FALSE)
 split2 <- str_split_fixed(all$Methods, "_", 2)
@@ -451,7 +452,9 @@ str(all)
 child <- all[!all$pheno == "GCSE" , ]
 child <- child[child$Type == "direct" | child$Type == "indirect", ]
 child <- child[child$Method == "Siblings",]
-child$Type <- factor(child$Type, c("direct", "indirect"))
+child$Type[child$Type == "direct"] <- "Direct"
+child$Type[child$Type == "indirect"] <- "Indirect"
+child$Type <- factor(child$Type, c("Direct", "Indirect"))
 child$PRS <- factor(child$PRS, c("NonCog", "Cog"))
 child$pheno[child$pheno == "CITO"] <- "12yo"
 child$pheno[child$pheno == "12yo"] <- "Age 12 achievement"
@@ -459,7 +462,7 @@ child$pheno[child$pheno == "EA"] <- "Adult attainment"
 child$pheno <- factor(child$pheno, c("Age 12 achievement", "Adult attainment"))
 # child$Sample[child$Sample == "TEDS"] <- "UK"
 # child$Sample[child$Sample == "UKB"] <- "UK"
-tiff("Fig2B.tiff")
+tiff("Fig2B_200824.tiff")
 plot_B <- 
   ggplot(child, aes(y=original, x=Type)) +
   geom_point(aes(x=Type, y=original, color = interaction(Type, PRS)), size=7,
@@ -469,8 +472,8 @@ plot_B <-
   theme_bw()+
   labs(y = "Estimated effect of polygenic score on educational outcome", x = " ") +
   theme(axis.title.x=element_blank(),
-        axis.text.x=element_blank(),
-        axis.ticks.x=element_blank(),
+        axis.text.x=element_text(size = 12),
+        #axis.ticks.x=element_blank(),
         axis.text.y=element_text(size = 12),
         strip.text.x = element_text(size = 14), 
         axis.title.y = element_text(size = 14, margin=margin(t=0,r=2, b=0, l=0, unit="lines")),
@@ -481,9 +484,10 @@ plot_B <-
         panel.spacing.x = unit(c(0, 0.5, 0) , "lines"),
         strip.background=element_rect(fill="white"))+
   facet_grid(~pheno+Sample, scales="free", space="free") +
-  scale_color_manual(values=c("#ff9900", "#ffcc00", "#0033cc",  "#3399ff")) +
+  scale_color_manual(values=c("#ff9900", "#ffcc66", "#0033cc",  "#3399ff")) +
   #ggtitle("12yo and Adult outcomes, Sibling method") +
   geom_hline(yintercept=0, linetype="dashed")+
+  geom_vline(xintercept=1.5, linetype="dotted")+
   scale_shape_manual(values=c(21, 24, 25, 22, 23, 18))
 plot_B
 grid.newpage()
@@ -633,7 +637,7 @@ plot <-
   ggtitle("Total genetic effects") 
 plot
 
-# 7. Figure 2 with 1, 4.3 and 4.4 -----------
+# 7. Figure 2 with 1, 3.3 and 4.4 -----------
 #https://cran.r-project.org/web/packages/egg/vignettes/Ecosystem.html
 library(gridExtra)
 grid.arrange(plot_A, plot_B, plot_C)
