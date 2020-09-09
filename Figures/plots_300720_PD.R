@@ -46,7 +46,7 @@ plot_A <- ggplot(all,aes(y=estimate, x=PGS, fill=factor(PGSxEffect))) +
   theme(legend.title=element_blank(), 
         axis.ticks.y=element_blank(),
         axis.title.x=element_blank(),
-        axis.text.x = element_blank(),
+        axis.text.x = element_text(size = 12),
         axis.text.y = element_text(size = 12),
         axis.title.y = element_text(size = 14, margin=margin(t=0,r=2, b=0, l=0, unit="lines")),
         legend.key.size = unit(3, "lines"), 
