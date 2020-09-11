@@ -128,17 +128,11 @@ nrow(finalsib[finalsib$sex==0,]) #22873 female
 nrow(finalsib[finalsib$sex==1,]) / (nrow(finalsib[finalsib$sex==1,]) + nrow(finalsib[finalsib$sex==0,])) #0.4209367
 
 summary(finalsib$Age)
-# Min. 1st Qu.  Median    Mean 3rd Qu.    Max.
-# 40.00   52.00   58.00   56.93   63.00   70.00
-
-
 sd(finalsib$Age) #7.338735
-
 
 summary(finalsib$EA)
 # Min. 1st Qu.  Median    Mean 3rd Qu.    Max.
 # 7.00   10.00   13.00   13.62   20.00   20.00
-
 
 sd(finalsib$EA) #5.1000257
 
@@ -146,14 +140,11 @@ summary(finalsib$scoreNoNCogrev)
 # Min.    1st Qu.     Median       Mean    3rd Qu.       Max.
 # -3.656e-07 -1.368e-07 -9.468e-08 -9.421e-08 -5.193e-08  1.740e-07
 
-
 summary(finalsib$scoreCogrev)
 # Min.    1st Qu.     Median       Mean    3rd Qu.       Max.
 # -9.590e-07 -3.631e-07 -2.582e-07 -2.570e-07 -1.513e-07  4.107e-07
 
-
 cor(finalsib$scoreNoNCogrev,finalsib$scoreCogrev) # -0.2613102
-
 
 ############################################
 # Mixed model between-within family
@@ -275,7 +266,6 @@ dev.off()
 # look at  CI
 boot.ci(boot.out, type = c("norm", "basic"))
 
-
 # save results for each bootstrap in data frame
 bootoutput <- as.data.frame(boot.out$t)
 colnames(bootoutput) <- rownames(as.data.frame(boot.out$t0))
@@ -296,7 +286,6 @@ original$ratio_Cog <- original$indirect_Cog / original$direct_Cog
 original$ratio_tot_NonCog <- original$indirect_NonCog / original$total_NonCog
 original$ratio_tot_Cog <- original$indirect_Cog / original$total_Cog
 
-
 bootoutput$direct_NonCog <- bootoutput$GPS_W_NonCog
 bootoutput$direct_Cog <- bootoutput$GPS_W_Cog
 bootoutput$total_NonCog <- bootoutput$GPS_B_NonCog
@@ -307,7 +296,6 @@ bootoutput$ratio_NonCog <- bootoutput$indirect_NonCog / bootoutput$direct_NonCog
 bootoutput$ratio_Cog <- bootoutput$indirect_Cog / bootoutput$direct_Cog
 bootoutput$ratio_tot_NonCog <- bootoutput$indirect_NonCog / bootoutput$total_NonCog
 bootoutput$ratio_tot_Cog <- bootoutput$indirect_Cog / bootoutput$total_Cog
-
 
 mean <- apply(bootoutput, 2, mean) # mean of the estimates of the bootstrap resamples
 bias <- mean - original
@@ -330,10 +318,8 @@ tot
 
 write.table(tot, "summary_mean_CI_siblings_UKB_20200529.csv", row.names=T, quote=F)
 
-
 ### Compare estimates 
 ######################
-
 
 diffcog <- original$direct_Cog - original$indirect_Cog 
 diffnoncog <- original$direct_NonCog - original$indirect_NonCog
