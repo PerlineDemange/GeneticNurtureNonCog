@@ -58,11 +58,7 @@ nrow(finalsib[finalsib$sex==0,]) #3350 female
 nrow(finaladop[finaladop$sex==1,]) / (nrow(finaladop[finaladop$sex==1,]) + nrow(finaladop[finaladop$sex==0,])) #0.47713
 
 summary(finaladop$Age)
-# Min. 1st Qu.  Median    Mean 3rd Qu.    Max.
-# 40.00   49.00   59.00   56.46   64.00   70.00
-
 sd(finaladop$Age) #8.512444
-
 
 summary(finaladop$EA)
 # Min. 1st Qu.  Median    Mean 3rd Qu.    Max.
@@ -110,40 +106,28 @@ nrow(finalcontrol[finalcontrol$sex==0,]) #3539 female
 nrow(finalcontrol[finalcontrol$sex==1,]) / (nrow(finalcontrol[finalcontrol$sex==1,]) + nrow(finalcontrol[finalcontrol$sex==0,])) #0.455538
 
 summary(finalcontrol$Age)
-# Min. 1st Qu.  Median    Mean 3rd Qu.    Max.
-# 40.00   51.00   58.00   56.97   63.00   71.00
-
-
 sd(finalcontrol$Age) #7.851899
-
-
 
 summary(finalcontrol$EA)
 # Min. 1st Qu.  Median    Mean 3rd Qu.    Max.
 # 7.00   10.00   13.00   13.93   20.00   20.00
 
-
 sd(finalcontrol$EA) #5.126729
-
 
 summary(finalcontrol$scoreNonCogrev)
 # Min.    1st Qu.     Median       Mean    3rd Qu.       Max.
 # -3.507e-07 -1.370e-07 -9.544e-08 -9.419e-08 -5.166e-08  1.611e-07
 
-
 summary(finalcontrol$scoreCogrev)
 # Min.    1st Qu.     Median       Mean    3rd Qu.       Max.
 # -8.228e-07 -3.656e-07 -2.626e-07 -2.617e-07 -1.585e-07  2.849e-07
 
-
 cor(finalcontrol$scoreNonCogrev,finalcontrol$scoreCogrev) #-0.2625942
-
 
 # Save data
 #####################
 write.table(finaladop, file="Data_scores_adop_UKB_20200529.csv", row.names=F, quote=F) 
 write.table(finalcontrol, file="Data_scores_nonadop_UKB_20200529.csv", row.names=F, quote=F) 
-
 
 ####################
 ## Run PGS analyses
@@ -190,7 +174,6 @@ resultsadoption <- cbind(adopcoef, nonadopcoef)
 # Bootstrap 
 #################
 
-
 library(boot)
 nboot <- 10000
 bootadop<-function(data,index){
@@ -210,7 +193,6 @@ boot.out.control<-boot(finalcontrol,bootcontrol,nboot,parallel = "multicore", nc
 
 #saveRDS(boot.out.adop, "bootstrapped_output_adop_UKB_EA_20200529.Rda")
 #saveRDS(boot.out.control, "bootstrapped_output_nonadop_UKB_EA_20200529.Rda")
-
 
 #plot to check bootstrapping
 options(bitmapType='cairo')
@@ -238,8 +220,6 @@ colnames(bootoutput.adop) <- rownames(as.data.frame(boot.out.adop$t0))
 colnames(bootoutput.nonadop) <- rownames(as.data.frame(boot.out.control$t0))
 #write.table(bootoutput.adop, "Data_scores_adop_UKB_bootstrapped_20200529.csv", row.names=F, quote=F)
 #write.table(bootoutput.nonadop, "Data_scores_nonadop_UKB_bootstrapped_20200529.csv", row.names=F, quote=F)
-
-
 
 bmain.adop <- bootoutput.adop[,2:3] #Save variables of interest
 bmain.nonadop <- bootoutput.nonadop[,2:3] #Save variables of interest
