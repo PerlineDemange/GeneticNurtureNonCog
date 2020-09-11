@@ -263,8 +263,6 @@ nrow(finalsib[finalsib$sex==1,]) / (nrow(finalsib[finalsib$sex==1,])+nrow(finals
 # 0.3695858
 
 summary(finalsib$yob)
-# Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-# 1914    1963    1972    1970    1978    1991 
 sd(finalsib$yob) # 12.99691
 summary(finalsib$Eduyears)
 # Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
@@ -531,8 +529,6 @@ nrow(finalsib[finalsib$sex==1,]) / (nrow(finalsib[finalsib$sex==1,]) +nrow(final
 # 0.4500307
 
 summary(finalsib$yob)
-# Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-# 1981    1989    1991    1992    1995    2001 
 sd(finalsib$yob) # 3.523733
 summary(finalsib$cito_final)
 # Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
@@ -566,7 +562,6 @@ hist(finalsib$scoreCog_sc)
 # write.table(finalsib, "Data_siblings_NTR_CITO_20200511.csv", row.names=F, quote=F)
 #finalsib <- fread("Data_siblings_NTR_CITO_20200511.csv", colClasses=c("FISNumber"="character"))
 
-
 # * * 2.3.2 ICC  -----
 m0 <- lme(CITO_sc~1, 
           random=~1|FamilyNumber, 
@@ -589,8 +584,6 @@ m0 <- lme(SCORE.NonCog~1,
           na.action=na.omit,
           data=finalsib)
 ICCest(m0) 
-
-
 
 # * * 2.3.2 Simple linear model -----
 
@@ -916,8 +909,6 @@ nrow(datatriosEA[datatriosEA$sex==1,])/ (nrow(datatriosEA[datatriosEA$sex==1,]) 
 #0.355959
 
 summary(datatriosEA$yob)
-# Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-# 1947    1972    1976    1977    1986    1991 
 sd(datatriosEA$yob) # 8.143513
 summary(datatriosEA$Eduyears)
 # Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
@@ -1123,7 +1114,6 @@ compare <- cbind(Z_diffcog, P_diffcog, Z_diffnoncog, P_diffnoncog, Z_diffratio, 
 #write.table(compare, "Ztests_trio_NTR_EA_20200531.csv", row.names=T, quote=F)
 
 
-
 # * * 3.2.3 Difference between parents -----
 
 summary(lm(EA_sc ~ SCORE.Nontrans.Dad.Cog_sc + SCORE.Nontrans.Mom.Cog_sc + 
@@ -1147,9 +1137,7 @@ nrow(datatriosCITO[datatriosCITO$sex==2,]) #852 female
 nrow(datatriosCITO[datatriosCITO$sex==1,])/ (nrow(datatriosCITO[datatriosCITO$sex==1,]) + nrow(datatriosCITO[datatriosCITO$sex==2,]))
 #0.4416776 
 
-summary(datatriosCITO$yob)
-# Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-# 1984    1989    1991    1992    1994    2002  
+summary(datatriosCITO$yob) 
 sd(datatriosCITO$yob) # 3.61102
 summary(datatriosCITO$cito_final)
 # Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
