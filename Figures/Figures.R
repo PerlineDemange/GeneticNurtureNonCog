@@ -123,8 +123,8 @@ head(data)
 data$Zscore <- data$original/data$se
 data$pvalue <- 2*pnorm(-abs(data$Zscore))
 
-write.table(data, "dataforfigures_20200607.csv", quote=F, row.names=T)
-#data <- read.table("dataforfigures_20200531.csv", header=T)
+#write.table(data, "dataforfigures_20200607.csv", quote=F, row.names=T)
+data <- read.table("dataforfigures_20200607.csv", header=T)
 
 cogonly <- data[data$PRS == "Cog", ]
 noncogonly <- data[data$PRS == "NonCog", ]
@@ -132,31 +132,31 @@ reshaped <- cbind(cogonly, noncogonly)
 reshaped$pvalue_bonf <- p.adjust(reshaped$pvalue, "bonferroni")
 head(reshaped)
 
-write.table(reshaped, "datafortable_20200607.csv", quote=F, row.names=T)
+#write.table(reshaped, "datafortable_20200607.csv", quote=F, row.names=T)
 
-library(ggplot2)
-data$Type <- factor(data$Type, 
-                    levels=c("total", "direct", "indirect", "ratio_tot"))
-data$Methods <- factor(data$Methods, 
-                       levels=c("Adoption_UKB","Siblings_UKB", "Siblings_NTR", "Trios_NTR"))
-ggplot(data, aes(x=Type, y=original, fill=PRS)) + 
-  geom_bar(position=position_dodge(), stat="identity") +
-  geom_errorbar(aes(ymin=leftCI, ymax=rightCI),
-                width=.4,                    # Width of the error bars
-                position=position_dodge(.9)) + 
-  scale_fill_manual(values = c("#1E90FF","#ff9933")) + 
-  #coord_flip()+
-  scale_x_discrete(limits = levels(data$Type)) +
-  guides(fill = guide_legend(reverse = F))+
-  theme_light()+
-  xlab("Genetic Effects")+
-  facet_grid(. ~ Methods*pheno)+
-  #scale_y_continuous(expand = c(0,0)) +
-  ylim(-0.6, 1) +
-  theme(axis.title.y=element_blank(),
-        legend.title=element_text("PRS"),
-         panel.grid.major = element_blank(),
-        axis.line.x = element_line(colour = "black"))
+# library(ggplot2)
+# data$Type <- factor(data$Type, 
+#                     levels=c("total", "direct", "indirect", "ratio_tot"))
+# data$Methods <- factor(data$Methods, 
+#                        levels=c("Adoption_UKB","Siblings_UKB", "Siblings_NTR", "Trios_NTR"))
+# ggplot(data, aes(x=Type, y=original, fill=PRS)) + 
+#   geom_bar(position=position_dodge(), stat="identity") +
+#   geom_errorbar(aes(ymin=leftCI, ymax=rightCI),
+#                 width=.4,                    # Width of the error bars
+#                 position=position_dodge(.9)) + 
+#   scale_fill_manual(values = c("#1E90FF","#ff9933")) + 
+#   #coord_flip()+
+#   scale_x_discrete(limits = levels(data$Type)) +
+#   guides(fill = guide_legend(reverse = F))+
+#   theme_light()+
+#   xlab("Genetic Effects")+
+#   facet_grid(. ~ Methods*pheno)+
+#   #scale_y_continuous(expand = c(0,0)) +
+#   ylim(-0.6, 1) +
+#   theme(axis.title.y=element_blank(),
+#         legend.title=element_text("PRS"),
+#          panel.grid.major = element_blank(),
+#         axis.line.x = element_line(colour = "black"))
 
 
 

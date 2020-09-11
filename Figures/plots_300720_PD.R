@@ -14,7 +14,7 @@ library(readr)
 library(stringr)
 
 
-# 1. make a stacked bar plot for overall metaanalysed results ###########################
+# 1. (Fig 2.A) make a stacked bar plot for overall metaanalysed results ###########################
 all <- read_csv("../Meta-analysis/meta_all_200730.csv")
 all$Effect <- factor(all$Effect, levels=c( "Direct","Indirect"))
 all$PGS <- factor(all$PGS, levels=c("NonCog","Cog"))
@@ -100,7 +100,7 @@ ggplot(method,aes(y=estimate, x=factor(Sample), fill=factor(PGSxEffect))) +
 
 
 
-## 3.1 Compare methods wiht all data + metanaalytic results #########
+## 3.1 Compare methods with all data + metanaalytic results #########
 
 all <- read.table("../dataforfigures_20200607.csv")
 
@@ -219,7 +219,7 @@ plot <-
 plot
 
 
-# 3.3 Compare method only including EA ##############
+# (Fig 2.C) 3.3 Compare method only including EA ##############
 
 method <- read_csv("../Meta-analysis/meta_methodEA.csv")
 
@@ -349,28 +349,6 @@ plot <-
 plot
 
 
-
-# 4.1 Compare EA vs school performance Meta-analysis ################################################################
-
-
-outcome<- read_csv("../Meta-analysis/meta_outcome_200730.csv")
-outcome
-plot <- 
-  ggplot(outcome, aes(y=estimate, x=Effect)) +
-  geom_point(aes(x=Effect, y=estimate, color = interaction(Effect, PGS)), size=5,position = position_dodge(.5))+#,position = position_dodge(4))+
-  geom_errorbar(aes(x=Effect,ymin=ci.lb, ymax=ci.ub, color = interaction(Effect, PGS)),  width=.9,position = position_dodge(.5)) +#, position=position_dodge(4)) + 
-  theme_bw()+
-  theme(axis.title.x=element_blank(),
-        axis.text.x=element_blank(),
-        axis.ticks.x=element_blank(),
-        panel.background=element_blank(),panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
-  labs(y = "Estimated effect of polygenic score on educational outcome", x = " ") +
-  facet_grid(~Sample, scales="free", space="free") +
-  scale_color_manual(values=c("#0033cc",  "#ff9900", "#3399ff", "#ffcc00")) +
-  ggtitle("Per Outcome") +
-  scale_shape_manual(values=c(21, 24, 25, 22, 23, 18))
-plot
-
 # 4.2 Compare child outcome all results  only siblings method ###################
 
 all <- read.table("../dataforfigures_20200607.csv", stringsAsFactors = FALSE)
@@ -436,7 +414,7 @@ plot <-
   scale_shape_manual(values=c(21, 24, 25, 22, 23, 18))
 plot
 
-# 4.4 Compare 12yo and EA  only siblings method ###################
+# (Fig 2.B) 4.4 Compare 12yo and EA  only siblings method ###################
 
 all <- read.table("../dataforfigures_20200607.csv", stringsAsFactors = FALSE)
 split2 <- str_split_fixed(all$Methods, "_", 2)
@@ -575,7 +553,7 @@ grid.newpage()
 grid.draw(OverlappingStripLabels(plot_B))
 
 
-# 5. All ratios ###################
+# (Supp Fig.4) 5. All ratios ###################
 
 all <- read.table("../dataforfigures_20200607.csv", stringsAsFactors = F)
 split2 <- str_split_fixed(all$Methods, "_", 2)
@@ -607,7 +585,7 @@ plot <-
   ggtitle("Ratio indirect/total") 
 plot
 
-# 6. All total ###################
+# (Supp Fig 3) 6. All total ###################
 
 all <- read.table("../dataforfigures_20200607.csv", stringsAsFactors = F)
 split2 <- str_split_fixed(all$Methods, "_", 2)
@@ -637,7 +615,7 @@ plot <-
   ggtitle("Total genetic effects") 
 plot
 
-# 7. Figure 2 with 1, 3.3 and 4.4 -----------
+# 7. Figure with 1, 3.3 and 4.4 -----------
 #https://cran.r-project.org/web/packages/egg/vignettes/Ecosystem.html
 library(gridExtra)
 grid.arrange(plot_A, plot_B, plot_C)
