@@ -1,6 +1,6 @@
-# rosa cog non cog
+# rosa cheesman
+# cog non cog
 #  gps analyses within TEDS DZs
-#  march 2020 
 #...........................................................................................................
 
 # use plink to change to rsids and subset snps to high info
@@ -22,9 +22,8 @@ sbatch -t 01:00:00 --mem 15G -n 4 -p shared update_snpid_info.sh
 
 #...........................................................................................................
 
-# NOW CREATE PRS for cog and non cog in teds DZs.
+#  CREATE PRS for cog and non cog in teds DZs.
 # USING PLINK WITH PRECALCULATED WEIGHTS 
-
 cd /users/k1620156/NonCog_Nurture/scripts
 rm make_cog_scores_teds.sh
 cat <<'EOT'>> make_cog_scores_teds.sh
@@ -55,7 +54,6 @@ cp -r $TMPDIR/scores /users/k1620156/NonCog_Nurture/output/cog/
 EOT
 sbatch -t 03:30:00 --mem 15G -n 4 -p shared make_cog_scores_teds.sh
 
-cd /users/k1620156/NonCog_Nurture/scripts
 rm make_noncog_scores_teds.sh
 cat <<'EOT'>> make_noncog_scores_teds.sh
 #!/bin/bash -l
@@ -87,9 +85,7 @@ sbatch -t 03:30:00 --mem 15G -n 4 -p shared make_noncog_scores_teds.sh
 
 #...........................................................................................................
 # combine PRS, phenos, covars all into one file.
-# get pheno file i made in R
 
-cd /users/k1620156/NonCog_Nurture/
 module load apps/R/3.6.0
 R
 # libraries
@@ -103,7 +99,6 @@ library(psych)
 pheno <- read.table("/users/k1620156/NonCog_Nurture/phenos_covs/DZ_edu_phenos_raw_cov", header=T, fill=T)
 # it's double entered so select one pheno from every pair
 pheno_select <- pheno[,c("id_fam","id_twin","lt3a1","pcexgcsecorem1")]
-# [1] 6638    4
 
 # 2. read in PRS 
 polyNC <- fread('/users/k1620156/NonCog_Nurture/output/noncog/scores/NONCOG_CEU_WTS_LDpred-inf_scores.profile', data.table=F, header=T) 
@@ -134,64 +129,11 @@ finalsib[,c("lt3a1_sc","pcexgcsecorem1_sc",
 																	"scoreNonCog", "scoreCog")],
 													                          2,
 													                          scale)
-
-age12<-finalsib[complete.cases(finalsib$lt3a1),]
-# age12_2<-age12[age12$id_fam %in% age12$id_fam[duplicated(age12$id_fam)],]
-# n=2292 individuals so 1146 twin pairs
-
-table(age12$sex1)
-#    0    1 
-# 1512 1350
-# 1350/(1512 +1350)
-# [1] 0.4716981
-# 
-summary(age12$ltqage1)
-#    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-#   10.12   10.83   11.39   11.38   11.94   14.09 
-sd((age12$ltqage1))
-summary(age12$lt3a1)
-sd(age12$lt3a1)
-#     Min.  1st Qu.   Median     Mean  3rd Qu.     Max. 
-# -3.79296 -0.43183 -0.01242  0.05622  0.68854  5.17005 
-# > sd(age12$lt3a1)
-# [1] 1.002698
-cor(age12$scoreNonCog,age12$scoreCog) 
-# -0.2655511
-
-
-# *********************
-
-age16<- finalsib[complete.cases(finalsib$pcexgcsecorem1),]
-# age16_2<-age16[age16$id_fam %in% age16$id_fam[duplicated(age16$id_fam)],]
-# full 4796 indivs used in models
-# 4732=2366 twin pairs with complete data.
-
-table(age16$sex1)
-#    0    1 
-# 2518 2278 
-# 2278/(2518+ 2278)
-# 0.4749791
-summary(age16$pcexgcseage1)
-#    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-#   15.83   16.08   16.33   16.31   16.58   16.75 
-sd((age16$pcexgcseage1))
-summary(age16$pcexgcsecorem1)
-  #  Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-  # 4.000   8.111   9.000   8.935   9.889  11.000 
-  sd(age16$pcexgcsecorem1)
-cor(age16$scoreNonCog,age16$scoreCog) 
-# -0.2695666
-
-
-
-############################################
-# look at overall results on avg...
-# linear model
-global12 <- lm(lt3a1_sc ~ scoreNonCog_sc + scoreCog_sc + sex1 + Batch + ltqage1 + sex1*ltqage1 + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, data=finalsib)
-summary(global12)
-
-global16 <- lm(pcexgcsecorem1_sc ~ scoreNonCog_sc + scoreCog_sc + sex1 + Batch + pcexgcseage1 + sex1*pcexgcseage1 + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, data=finalsib)
-summary(global16)
+			
+describe(finalsib[,c("lt3a1","pcexgcsecorem1","scoreNonCog", "scoreCog",
+	"lt3a1_sc","pcexgcsecorem1_sc","scoreNonCog_sc", "scoreCog_sc",
+	"sex1","ltqage1","pcexgcseage1",
+	 "PC1",  "PC2", "PC3",  "PC4",  "PC5",  "PC6", "PC7",  "PC8",  "PC9",  "PC10","Chip", "Batch")])
 
 ############################################
 # Mixed model between-within family
@@ -208,6 +150,7 @@ finalsib<-merge(finalsib,meanC,by="id_fam")
 
 # Create within-family variable
 # subtract mean dz pair gps from each individual's own gps value
+################################
 finalsib$GPS_W_NonCog <- finalsib$scoreNonCog_sc  - finalsib$GPS_B_NonCog  
 finalsib$GPS_W_Cog <- finalsib$scoreCog_sc  - finalsib$GPS_B_Cog  
 
@@ -219,22 +162,41 @@ finalsib$GPS_W_Cog <- finalsib$scoreCog_sc  - finalsib$GPS_B_Cog
 ############################################
 ############################################
 
+age12<-finalsib[complete.cases(finalsib$lt3a1),]
+
 # intercept model
-m0 <- lme(lt3a1_sc~1, random=~1|id_fam, method="ML", na.action=na.omit,data=finalsib)
+m0 <- lme(lt3a1_sc~1, random=~1|id_fam, method="ML", na.action=na.omit,data=age12)
+#calculate ICCs
+ICCest <- function(model) {
+  icc <- sqrt(diag(getVarCov(model)))^2 / (sqrt(diag(getVarCov(model)))^2 + model$sigma^2 )
+  as.vector(icc)
+}
 ICCest(m0) #get ICC 
-# include within and between family effect
-m1 <- lme(lt3a1_sc~GPS_B_NonCog + GPS_B_Cog + GPS_W_NonCog + GPS_W_Cog, random=~1|id_fam, method="ML", na.action=na.omit,data=finalsib)
+
+#check ICCs for PGS as well:
+m0 <- lme(scoreNonCog_sc~1, random=~1|id_fam, method="ML", na.action=na.omit,data=age12)
+ICCest(m0) #get ICC 
+
+m0 <- lme(scoreCog_sc~1, random=~1|id_fam, method="ML", na.action=na.omit,data=age12)
+ICCest(m0) #get ICC 
+
+
+# model including within and between family effect
+m1 <- lme(lt3a1_sc~GPS_B_NonCog + GPS_B_Cog + GPS_W_NonCog + GPS_W_Cog, random=~1|id_fam, method="ML", na.action=na.omit,data=age12)
 totaleffect(m1, m0) #get total effect #0.2238909
+
 # add Covariates in regression
-final12 <- lme(lt3a1_sc~GPS_B_NonCog + GPS_B_Cog + GPS_W_NonCog + GPS_W_Cog + sex1 +  Batch + ltqage1 + sex1*ltqage1 + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, random=~1|id_fam, method="ML", na.action=na.omit, data=finalsib)
+final12 <- lme(lt3a1_sc~GPS_B_NonCog + GPS_B_Cog + GPS_W_NonCog + GPS_W_Cog + sex1 +  Batch + ltqage1 + sex1*ltqage1 + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, random=~1|id_fam, method="ML", na.action=na.omit, data=age12)
 summary(final12)
+# NOTE THAT RESULTS ARE EXACT SAME WHWN USE FINALSIB DATAFRAME.
+
 # Extract estimates 
 ######################
 summary(final12)$tTable
+
 # save results
 resultsib <- summary(final12)$tTable
-write.table(resultsib, file="/mnt/lustre/groups/teds/rosa/noncog/Results_lme_DZ_TEDS_EAch12_130420.csv", quote=F) 
-
+#write.table(resultsib, file="/mnt/lustre/groups/teds/rosa/noncog/Results_lme_DZ_TEDS_EAch12_130420.csv", quote=F) 
 
 direct_NonCog <- summary(final12)$tTable[4,1]# direct effect is beta within 
 direct_Cog <- summary(final12)$tTable[5,1]
@@ -247,12 +209,15 @@ ratio_Cog <- indirect_Cog/direct_Cog
 ratio_tot_NonCog <- indirect_NonCog/total_NonCog 
 ratio_tot_Cog <- indirect_Cog/total_Cog 
 
+
+
 #################
 # Bootstrap -- age 12
 #################
 
 
 # Bootstrapping FOR AGE 12 RESULTS ------------
+# new df, changin all variables to non-factors
 finalsibf<-finalsib
 finalsibf$Batch<-as.numeric(finalsib$Batch)
 
@@ -267,7 +232,6 @@ bootcoef<-function(data,index){
 
 # carry out bootstrap
 boot.out<-boot(finalsibf,bootcoef,nboot, parallel = "multicore", ncpus=20) 
-
 #Save t output of boot
 bootoutput <- as.data.frame(boot.out$t)
 colnames(bootoutput) <- rownames(as.data.frame(boot.out$t0))
@@ -312,7 +276,7 @@ statsoutput
 tot <- statsoutput[,c(ncol(statsoutput), 1:(ncol(statsoutput)-1))]
 tot
 
-write.table(tot, "/mnt/lustre/groups/teds/rosa/noncog/summary_mean_CI_siblings_TEDS_12_270520.csv", row.names=T, quote=F)
+#write.table(tot, "/mnt/lustre/groups/teds/rosa/noncog/summary_mean_CI_siblings_TEDS_12_270520.csv", row.names=T, quote=F)
 
 # Comparing estimates ------
 diffcog <- original$direct_Cog - original$indirect_Cog 
@@ -332,25 +296,42 @@ P_diffnoncog <- 2*pnorm(-abs(Z_diffnoncog))
 P_diffratio <- 2*pnorm(-abs(Z_diffratio))
 
 
+compare <- cbind(Z_diffcog, P_diffcog, Z_diffnoncog, P_diffnoncog, Z_diffratio, P_diffratio)
+
+#write.table(compare, "/mnt/lustre/groups/teds/rosa/noncog/results/Ztests_siblings_TEDS_12_040820.csv", row.names=T, quote=F)
+
 ############################################
 ############################################
-# Mixed effects model
-# FOR GCSE RESULTS
+# GCSE RESULTS analyses
 ############################################
 ############################################
+
+age16<- finalsib[complete.cases(finalsib$pcexgcsecorem1),]
+
 # intercept model
-m0 <- lme(pcexgcsecorem1_sc~1, random=~1|id_fam, method="ML", na.action=na.omit,data=finalsib)
+m0 <- lme(pcexgcsecorem1_sc~1, random=~1|id_fam, method="ML", na.action=na.omit,data=age16)
+
+ICCest <- function(model) {
+  icc <- sqrt(diag(getVarCov(model)))^2 / (sqrt(diag(getVarCov(model)))^2 + model$sigma^2 )
+  as.vector(icc)
+}
 ICCest(m0) #get ICC 
-# 0.5761701
+
+#check ICCs for PGS as well:
+m0 <- lme(scoreNonCog_sc~1, random=~1|id_fam, method="ML", na.action=na.omit,data=age16)
+ICCest(m0) #get ICC 
+
+m0 <- lme(scoreCog_sc~1, random=~1|id_fam, method="ML", na.action=na.omit,data=age16)
+ICCest(m0) #get ICC 
 
 # include within and between family effect
-m1 <- lme(pcexgcsecorem1_sc~GPS_B_NonCog + GPS_B_Cog + GPS_W_NonCog + GPS_W_Cog, random=~1|id_fam, method="ML", na.action=na.omit,data=finalsib)
+m1 <- lme(pcexgcsecorem1_sc~GPS_B_NonCog + GPS_B_Cog + GPS_W_NonCog + GPS_W_Cog, random=~1|id_fam, method="ML", na.action=na.omit,data=age16)
 totaleffect(m1, m0) #get total effect #0.2745393 
 # check if this makes sense
 summary(m1)
 
 # add Covariates in regression
-final16 <- lme(pcexgcsecorem1_sc~GPS_B_NonCog + GPS_B_Cog + GPS_W_NonCog + GPS_W_Cog + sex1 +  Batch + pcexgcseage1 + sex1*pcexgcseage1 + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, random=~1|id_fam, method="ML", na.action=na.omit, data=finalsib)
+final16 <- lme(pcexgcsecorem1_sc~GPS_B_NonCog + GPS_B_Cog + GPS_W_NonCog + GPS_W_Cog + sex1 +  Batch + pcexgcseage1 + sex1*pcexgcseage1 + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, random=~1|id_fam, method="ML", na.action=na.omit, data=age16)
 summary(final16)
 
 # Extract estimates 
@@ -372,8 +353,7 @@ ratio_tot_Cog <- indirect_Cog/total_Cog
 
 # save results
 resultsib <- summary(final16)$tTable
-write.table(resultsib, file="/mnt/lustre/groups/teds/rosa/noncog/Results_lme_DZ_TEDS_GCSE_270520.csv", quote=F) 
-
+#write.table(resultsib, file="/mnt/lustre/groups/teds/rosa/noncog/Results_lme_DZ_TEDS_GCSE_270520.csv", quote=F) 
 
 #################
 # Bootstrap -- age 16
@@ -434,7 +414,7 @@ statsoutput
 tot <- statsoutput[,c(ncol(statsoutput), 1:(ncol(statsoutput)-1))]
 tot
 
-write.table(tot, "/mnt/lustre/groups/teds/rosa/noncog/summary_mean_CI_siblings_TEDS_GCSE_270520.csv", row.names=T, quote=F)
+#write.table(tot, "/mnt/lustre/groups/teds/rosa/noncog/summary_mean_CI_siblings_TEDS_GCSE_270520.csv", row.names=T, quote=F)
 
 
 # Comparing estimates ------
@@ -453,5 +433,6 @@ Z_diffratio <- diffratio/SD_sampling_diffratio
 P_diffcog <- 2*pnorm(-abs(Z_diffcog))
 P_diffnoncog <- 2*pnorm(-abs(Z_diffnoncog))
 P_diffratio <- 2*pnorm(-abs(Z_diffratio))
+compare <- cbind(Z_diffcog, P_diffcog, Z_diffnoncog, P_diffnoncog, Z_diffratio, P_diffratio)
 
-
+#write.table(compare, "/mnt/lustre/groups/teds/rosa/noncog/results/Ztests_siblings_TEDS_16_040820.csv", row.names=T, quote=F)
