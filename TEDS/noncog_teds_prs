@@ -1,6 +1,6 @@
 # rosa cheesman
-# cog non cog
-#  gps analyses within TEDS DZs
+# cog/ non cog parental genetic effects
+# gps analyses - TEDS DZs
 #...........................................................................................................
 
 # use plink to change to rsids and subset snps to high info
@@ -129,11 +129,6 @@ finalsib[,c("lt3a1_sc","pcexgcsecorem1_sc",
 																	"scoreNonCog", "scoreCog")],
 													                          2,
 													                          scale)
-			
-describe(finalsib[,c("lt3a1","pcexgcsecorem1","scoreNonCog", "scoreCog",
-	"lt3a1_sc","pcexgcsecorem1_sc","scoreNonCog_sc", "scoreCog_sc",
-	"sex1","ltqage1","pcexgcseage1",
-	 "PC1",  "PC2", "PC3",  "PC4",  "PC5",  "PC6", "PC7",  "PC8",  "PC9",  "PC10","Chip", "Batch")])
 
 ############################################
 # Mixed model between-within family
@@ -180,48 +175,43 @@ ICCest(m0) #get ICC
 m0 <- lme(scoreCog_sc~1, random=~1|id_fam, method="ML", na.action=na.omit,data=age12)
 ICCest(m0) #get ICC 
 
-
 # model including within and between family effect
 m1 <- lme(lt3a1_sc~GPS_B_NonCog + GPS_B_Cog + GPS_W_NonCog + GPS_W_Cog, random=~1|id_fam, method="ML", na.action=na.omit,data=age12)
-totaleffect(m1, m0) #get total effect #0.2238909
 
 # add Covariates in regression
 final12 <- lme(lt3a1_sc~GPS_B_NonCog + GPS_B_Cog + GPS_W_NonCog + GPS_W_Cog + sex1 +  Batch + ltqage1 + sex1*ltqage1 + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, random=~1|id_fam, method="ML", na.action=na.omit, data=age12)
 summary(final12)
-# NOTE THAT RESULTS ARE EXACT SAME WHWN USE FINALSIB DATAFRAME.
+
+# population effect model (w. covariates)
+pop12 <- lme(lt3a1_sc~scoreNonCog_sc +  scoreCog_sc+ sex1 +  Batch + ltqage1 + sex1*ltqage1 + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, random=~1|id_fam, method="ML", na.action=na.omit, data=age12)
+summary(pop12)
+
 
 # Extract estimates 
 ######################
 summary(final12)$tTable
-
-# save results
-resultsib <- summary(final12)$tTable
-#write.table(resultsib, file="/mnt/lustre/groups/teds/rosa/noncog/Results_lme_DZ_TEDS_EAch12_130420.csv", quote=F) 
-
-direct_NonCog <- summary(final12)$tTable[4,1]# direct effect is beta within 
+direct_NonCog <- summary(final12)$tTable[4,1]
 direct_Cog <- summary(final12)$tTable[5,1]
-total_NonCog <- summary(final12)$tTable[2,1] # total is beta between 
-total_Cog <- summary(final12)$tTable[3,1]
-indirect_NonCog <- total_NonCog - direct_NonCog 
-indirect_Cog <- total_Cog - direct_Cog 
+pop_NonCog <- summary(pop12)$tTable[2,1] 
+pop_Cog <- summary(pop12)$tTable[3,1]
+indirect_NonCog <- pop_NonCog - direct_NonCog 
+indirect_Cog <- pop_Cog - direct_Cog 
 ratio_NonCog <- indirect_NonCog/direct_NonCog  
 ratio_Cog <- indirect_Cog/direct_Cog  
-ratio_tot_NonCog <- indirect_NonCog/total_NonCog 
-ratio_tot_Cog <- indirect_Cog/total_Cog 
-
+ratio_pop_NonCog <- indirect_NonCog/pop_NonCog 
+ratio_pop_Cog <- indirect_Cog/pop_Cog 
 
 
 #################
 # Bootstrap -- age 12
 #################
 
-
-# Bootstrapping FOR AGE 12 RESULTS ------------
-# new df, changin all variables to non-factors
+# new df, changin variables to non-factors
 finalsibf<-finalsib
-finalsibf$Batch<-as.numeric(finalsib$Batch)
+finalsibf$Batch<-as.numeric(finalsibf$Batch)
 
 nboot <- 10000
+
 bootcoef<-function(data,index){
   datx<-finalsibf[index,]
   mod<-lme(lt3a1_sc~GPS_B_NonCog + GPS_B_Cog + GPS_W_NonCog + GPS_W_Cog + 
@@ -229,38 +219,55 @@ bootcoef<-function(data,index){
   	random=~1|id_fam, method="ML", na.action=na.omit, data=datx,control=lmeControl(opt = "optim"))
   fixef(mod) #get fixed effects
 }
-
 # carry out bootstrap
 boot.out<-boot(finalsibf,bootcoef,nboot, parallel = "multicore", ncpus=20) 
 #Save t output of boot
 bootoutput <- as.data.frame(boot.out$t)
 colnames(bootoutput) <- rownames(as.data.frame(boot.out$t0))
-head(bootoutput)
-
 # get values out of boot.out for all estimates + create indirect and ratio estimates
 original <- as.data.frame(t(boot.out$t0)) # estimates of the original sample #best estimates of the effects
-
 original$direct_NonCog <- original$GPS_W_NonCog
 original$direct_Cog <- original$GPS_W_Cog
-original$total_NonCog <- original$GPS_B_NonCog
-original$total_Cog <- original$GPS_B_Cog
-original$indirect_NonCog <- original$total_NonCog - original$direct_NonCog
-original$indirect_Cog <- original$total_Cog - original$direct_Cog
+
+# bootstrap model to get pop effect.
+bootcoef2<-function(data,index){
+  datx<-finalsibf[index,]
+  mod2<-lme(lt3a1_sc~scoreNonCog_sc +  scoreCog_sc + 
+  	sex1 +  Batch + ltqage1 + sex1*ltqage1 + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, 
+  	random=~1|id_fam, method="ML", na.action=na.omit, data=datx,control=lmeControl(opt = "optim"))
+  fixef(mod2) #get fixed effects
+}
+# carry out bootstrap
+boot.out2<-boot(finalsibf,bootcoef2,nboot, parallel = "multicore", ncpus=20) 
+#Save t output of boot
+bootoutput2 <- as.data.frame(boot.out2$t)
+colnames(bootoutput2) <- rownames(as.data.frame(boot.out2$t0))
+
+# get values out of boot.out for all estimates + create indirect and ratio estimates
+original2 <- as.data.frame(t(boot.out2$t0)) # estimates of the original sample #best estimates of the effects
+original2$pop_NonCog <- original2$scoreNonCog_sc
+original2$pop_Cog <- original2$scoreCog_sc
+
+# combine 2 results
+original<-cbind(original, original2)
+original$indirect_NonCog <- original$pop_NonCog - original$direct_NonCog
+original$indirect_Cog <- original$pop_Cog - original$direct_Cog
 original$ratio_NonCog <- original$indirect_NonCog / original$direct_NonCog
 original$ratio_Cog <- original$indirect_Cog / original$direct_Cog
-original$ratio_tot_NonCog <- original$indirect_NonCog / original$total_NonCog
-original$ratio_tot_Cog <- original$indirect_Cog / original$total_Cog
+original$ratio_pop_NonCog <- original$indirect_NonCog / original$pop_NonCog
+original$ratio_pop_Cog <- original$indirect_Cog / original$pop_Cog
 
 bootoutput$direct_NonCog <- bootoutput$GPS_W_NonCog
 bootoutput$direct_Cog <- bootoutput$GPS_W_Cog
-bootoutput$total_NonCog <- bootoutput$GPS_B_NonCog
-bootoutput$total_Cog <- bootoutput$GPS_B_Cog
-bootoutput$indirect_NonCog <- bootoutput$total_NonCog - bootoutput$direct_NonCog
-bootoutput$indirect_Cog <- bootoutput$total_Cog - bootoutput$direct_Cog
+bootoutput2$pop_NonCog <- bootoutput2$scoreNonCog_sc
+bootoutput2$pop_Cog <- bootoutput2$scoreCog_sc
+bootoutput<-cbind(bootoutput,bootoutput2)
+bootoutput$indirect_NonCog <- bootoutput$pop_NonCog - bootoutput$direct_NonCog
+bootoutput$indirect_Cog <- bootoutput$pop_Cog - bootoutput$direct_Cog
 bootoutput$ratio_NonCog <- bootoutput$indirect_NonCog / bootoutput$direct_NonCog
 bootoutput$ratio_Cog <- bootoutput$indirect_Cog / bootoutput$direct_Cog
-bootoutput$ratio_tot_NonCog <- bootoutput$indirect_NonCog / bootoutput$total_NonCog
-bootoutput$ratio_tot_Cog <- bootoutput$indirect_Cog / bootoutput$total_Cog
+bootoutput$ratio_pop_NonCog <- bootoutput$indirect_NonCog / bootoutput$pop_NonCog
+bootoutput$ratio_pop_Cog <- bootoutput$indirect_Cog / bootoutput$pop_Cog
 
 mean <- apply(bootoutput, 2, mean) # mean of the estimates of the bootstrap resamples
 bias <- mean - original
@@ -274,18 +281,21 @@ statsoutput <- rbind(original, mean, bias, se, error, leftCI, rightCI)
 statsoutput$Estimates <- c('original', 'mean', 'bias', 'se', 'error', 'leftCI', 'rightCI')
 statsoutput
 tot <- statsoutput[,c(ncol(statsoutput), 1:(ncol(statsoutput)-1))]
+tot<-tot[,c("Estimates","direct_NonCog","direct_Cog",
+	"pop_NonCog","pop_Cog","indirect_NonCog","indirect_Cog",
+	"ratio_NonCog","ratio_Cog","ratio_pop_NonCog" ,"ratio_pop_Cog")]
 tot
 
-#write.table(tot, "/mnt/lustre/groups/teds/rosa/noncog/summary_mean_CI_siblings_TEDS_12_270520.csv", row.names=T, quote=F)
+write.table(tot, "/mnt/lustre/groups/teds/rosa/noncog/results/summary_mean_CI_siblings_TEDS_12_150421.csv", row.names=T, quote=F)
 
 # Comparing estimates ------
 diffcog <- original$direct_Cog - original$indirect_Cog 
 diffnoncog <- original$direct_NonCog - original$indirect_NonCog
-diffratio  <- original$ratio_tot_Cog - original$ratio_tot_NonCog
+diffratio  <- original$ratio_pop_Cog - original$ratio_pop_NonCog
 
 SD_sampling_diffcog <- sd(bootoutput$direct_Cog - bootoutput$indirect_Cog)
 SD_sampling_diffnoncog <- sd(bootoutput$direct_NonCog - bootoutput$indirect_NonCog)
-SD_sampling_diffratio <- sd(bootoutput$ratio_tot_Cog - bootoutput$ratio_tot_NonCog)
+SD_sampling_diffratio <- sd(bootoutput$ratio_pop_Cog - bootoutput$ratio_pop_NonCog)
 
 Z_diffcog <- diffcog/SD_sampling_diffcog
 Z_diffnoncog <- diffnoncog/SD_sampling_diffnoncog
@@ -298,7 +308,7 @@ P_diffratio <- 2*pnorm(-abs(Z_diffratio))
 
 compare <- cbind(Z_diffcog, P_diffcog, Z_diffnoncog, P_diffnoncog, Z_diffratio, P_diffratio)
 
-#write.table(compare, "/mnt/lustre/groups/teds/rosa/noncog/results/Ztests_siblings_TEDS_12_040820.csv", row.names=T, quote=F)
+write.table(compare, "/mnt/lustre/groups/teds/rosa/noncog/results/Ztests_siblings_TEDS_12_150421.csv", row.names=T, quote=F)
 
 ############################################
 ############################################
@@ -306,99 +316,107 @@ compare <- cbind(Z_diffcog, P_diffcog, Z_diffnoncog, P_diffnoncog, Z_diffratio, 
 ############################################
 ############################################
 
-age16<- finalsib[complete.cases(finalsib$pcexgcsecorem1),]
+age16<-finalsib[complete.cases(finalsib$lt3a1),]
 
 # intercept model
 m0 <- lme(pcexgcsecorem1_sc~1, random=~1|id_fam, method="ML", na.action=na.omit,data=age16)
-
-ICCest <- function(model) {
-  icc <- sqrt(diag(getVarCov(model)))^2 / (sqrt(diag(getVarCov(model)))^2 + model$sigma^2 )
-  as.vector(icc)
-}
-ICCest(m0) #get ICC 
-
-#check ICCs for PGS as well:
 m0 <- lme(scoreNonCog_sc~1, random=~1|id_fam, method="ML", na.action=na.omit,data=age16)
 ICCest(m0) #get ICC 
-
 m0 <- lme(scoreCog_sc~1, random=~1|id_fam, method="ML", na.action=na.omit,data=age16)
 ICCest(m0) #get ICC 
 
-# include within and between family effect
+# model including within and between family effect
 m1 <- lme(pcexgcsecorem1_sc~GPS_B_NonCog + GPS_B_Cog + GPS_W_NonCog + GPS_W_Cog, random=~1|id_fam, method="ML", na.action=na.omit,data=age16)
-totaleffect(m1, m0) #get total effect #0.2745393 
-# check if this makes sense
-summary(m1)
 
 # add Covariates in regression
 final16 <- lme(pcexgcsecorem1_sc~GPS_B_NonCog + GPS_B_Cog + GPS_W_NonCog + GPS_W_Cog + sex1 +  Batch + pcexgcseage1 + sex1*pcexgcseage1 + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, random=~1|id_fam, method="ML", na.action=na.omit, data=age16)
 summary(final16)
 
+# population effect model (w. covariates)
+pop16 <- lme(pcexgcsecorem1_sc~scoreNonCog_sc +  scoreCog_sc+ sex1 +  Batch + pcexgcseage1 + sex1*pcexgcseage1 + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, random=~1|id_fam, method="ML", na.action=na.omit, data=age16)
+summary(pop16)
+
+
 # Extract estimates 
 ######################
-names(summary(final16))
 summary(final16)$tTable
-
-direct_NonCog <- summary(final16)$tTable[4,1]# direct effect is beta within 
+direct_NonCog <- summary(final16)$tTable[4,1]
 direct_Cog <- summary(final16)$tTable[5,1]
-total_NonCog <- summary(final16)$tTable[2,1] # total is beta between 
-total_Cog <- summary(final16)$tTable[3,1]
-indirect_NonCog <- total_NonCog - direct_NonCog 
-indirect_Cog <- total_Cog - direct_Cog 
+pop_NonCog <- summary(pop16)$tTable[2,1] 
+pop_Cog <- summary(pop16)$tTable[3,1]
+indirect_NonCog <- pop_NonCog - direct_NonCog 
+indirect_Cog <- pop_Cog - direct_Cog 
 ratio_NonCog <- indirect_NonCog/direct_NonCog  
 ratio_Cog <- indirect_Cog/direct_Cog  
-ratio_tot_NonCog <- indirect_NonCog/total_NonCog 
-ratio_tot_Cog <- indirect_Cog/total_Cog 
-
-
-# save results
-resultsib <- summary(final16)$tTable
-#write.table(resultsib, file="/mnt/lustre/groups/teds/rosa/noncog/Results_lme_DZ_TEDS_GCSE_270520.csv", quote=F) 
+ratio_pop_NonCog <- indirect_NonCog/pop_NonCog 
+ratio_pop_Cog <- indirect_Cog/pop_Cog 
 
 #################
 # Bootstrap -- age 16
 #################
+
+# new df, changin variables to non-factors
+finalsibf<-finalsib
+finalsibf$Batch<-as.numeric(finalsibf$Batch)
+
 nboot <- 10000
+
 bootcoef<-function(data,index){
   datx<-finalsibf[index,]
-  mod<-lme(pcexgcsecorem1_sc~GPS_B_NonCog + GPS_B_Cog + GPS_W_NonCog + GPS_W_Cog + sex1 +  Batch + pcexgcseage1 + sex1*pcexgcseage1+ 
-  	PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, 
+  mod<-lme(pcexgcsecorem1~GPS_B_NonCog + GPS_B_Cog + GPS_W_NonCog + GPS_W_Cog + 
+  	sex1 +  Batch + pcexgcseage1 + sex1*pcexgcseage1 + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, 
   	random=~1|id_fam, method="ML", na.action=na.omit, data=datx,control=lmeControl(opt = "optim"))
   fixef(mod) #get fixed effects
 }
-
 # carry out bootstrap
 boot.out<-boot(finalsibf,bootcoef,nboot, parallel = "multicore", ncpus=20) 
-
 #Save t output of boot
 bootoutput <- as.data.frame(boot.out$t)
 colnames(bootoutput) <- rownames(as.data.frame(boot.out$t0))
-head(bootoutput)
-
 # get values out of boot.out for all estimates + create indirect and ratio estimates
 original <- as.data.frame(t(boot.out$t0)) # estimates of the original sample #best estimates of the effects
-
 original$direct_NonCog <- original$GPS_W_NonCog
 original$direct_Cog <- original$GPS_W_Cog
-original$total_NonCog <- original$GPS_B_NonCog
-original$total_Cog <- original$GPS_B_Cog
-original$indirect_NonCog <- original$total_NonCog - original$direct_NonCog
-original$indirect_Cog <- original$total_Cog - original$direct_Cog
+
+# bootstrap model to get pop effect.
+bootcoef2<-function(data,index){
+  datx<-finalsibf[index,]
+  mod2<-lme(pcexgcsecorem1~scoreNonCog_sc +  scoreCog_sc + 
+  	sex1 +  Batch + pcexgcseage1 + sex1*pcexgcseage1 + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, 
+  	random=~1|id_fam, method="ML", na.action=na.omit, data=datx,control=lmeControl(opt = "optim"))
+  fixef(mod2) #get fixed effects
+}
+# carry out bootstrap
+boot.out2<-boot(finalsibf,bootcoef2,nboot, parallel = "multicore", ncpus=20) 
+#Save t output of boot
+bootoutput2 <- as.data.frame(boot.out2$t)
+colnames(bootoutput2) <- rownames(as.data.frame(boot.out2$t0))
+
+# get values out of boot.out for all estimates + create indirect and ratio estimates
+original2 <- as.data.frame(t(boot.out2$t0)) # estimates of the original sample #best estimates of the effects
+original2$pop_NonCog <- original2$scoreNonCog_sc
+original2$pop_Cog <- original2$scoreCog_sc
+
+# combine 2 results
+original<-cbind(original, original2)
+original$indirect_NonCog <- original$pop_NonCog - original$direct_NonCog
+original$indirect_Cog <- original$pop_Cog - original$direct_Cog
 original$ratio_NonCog <- original$indirect_NonCog / original$direct_NonCog
 original$ratio_Cog <- original$indirect_Cog / original$direct_Cog
-original$ratio_tot_NonCog <- original$indirect_NonCog / original$total_NonCog
-original$ratio_tot_Cog <- original$indirect_Cog / original$total_Cog
+original$ratio_pop_NonCog <- original$indirect_NonCog / original$pop_NonCog
+original$ratio_pop_Cog <- original$indirect_Cog / original$pop_Cog
 
 bootoutput$direct_NonCog <- bootoutput$GPS_W_NonCog
 bootoutput$direct_Cog <- bootoutput$GPS_W_Cog
-bootoutput$total_NonCog <- bootoutput$GPS_B_NonCog
-bootoutput$total_Cog <- bootoutput$GPS_B_Cog
-bootoutput$indirect_NonCog <- bootoutput$total_NonCog - bootoutput$direct_NonCog
-bootoutput$indirect_Cog <- bootoutput$total_Cog - bootoutput$direct_Cog
+bootoutput2$pop_NonCog <- bootoutput2$scoreNonCog_sc
+bootoutput2$pop_Cog <- bootoutput2$scoreCog_sc
+bootoutput<-cbind(bootoutput,bootoutput2)
+bootoutput$indirect_NonCog <- bootoutput$pop_NonCog - bootoutput$direct_NonCog
+bootoutput$indirect_Cog <- bootoutput$pop_Cog - bootoutput$direct_Cog
 bootoutput$ratio_NonCog <- bootoutput$indirect_NonCog / bootoutput$direct_NonCog
 bootoutput$ratio_Cog <- bootoutput$indirect_Cog / bootoutput$direct_Cog
-bootoutput$ratio_tot_NonCog <- bootoutput$indirect_NonCog / bootoutput$total_NonCog
-bootoutput$ratio_tot_Cog <- bootoutput$indirect_Cog / bootoutput$total_Cog
+bootoutput$ratio_pop_NonCog <- bootoutput$indirect_NonCog / bootoutput$pop_NonCog
+bootoutput$ratio_pop_Cog <- bootoutput$indirect_Cog / bootoutput$pop_Cog
 
 mean <- apply(bootoutput, 2, mean) # mean of the estimates of the bootstrap resamples
 bias <- mean - original
@@ -412,19 +430,21 @@ statsoutput <- rbind(original, mean, bias, se, error, leftCI, rightCI)
 statsoutput$Estimates <- c('original', 'mean', 'bias', 'se', 'error', 'leftCI', 'rightCI')
 statsoutput
 tot <- statsoutput[,c(ncol(statsoutput), 1:(ncol(statsoutput)-1))]
+tot<-tot[,c("Estimates","direct_NonCog","direct_Cog",
+	"pop_NonCog","pop_Cog","indirect_NonCog","indirect_Cog",
+	"ratio_NonCog","ratio_Cog","ratio_pop_NonCog" ,"ratio_pop_Cog")]
 tot
 
-#write.table(tot, "/mnt/lustre/groups/teds/rosa/noncog/summary_mean_CI_siblings_TEDS_GCSE_270520.csv", row.names=T, quote=F)
-
+write.table(tot, "/mnt/lustre/groups/teds/rosa/noncog/results/summary_mean_CI_siblings_TEDS_16_150421.csv", row.names=T, quote=F)
 
 # Comparing estimates ------
 diffcog <- original$direct_Cog - original$indirect_Cog 
 diffnoncog <- original$direct_NonCog - original$indirect_NonCog
-diffratio  <- original$ratio_tot_Cog - original$ratio_tot_NonCog
+diffratio  <- original$ratio_pop_Cog - original$ratio_pop_NonCog
 
 SD_sampling_diffcog <- sd(bootoutput$direct_Cog - bootoutput$indirect_Cog)
 SD_sampling_diffnoncog <- sd(bootoutput$direct_NonCog - bootoutput$indirect_NonCog)
-SD_sampling_diffratio <- sd(bootoutput$ratio_tot_Cog - bootoutput$ratio_tot_NonCog)
+SD_sampling_diffratio <- sd(bootoutput$ratio_pop_Cog - bootoutput$ratio_pop_NonCog)
 
 Z_diffcog <- diffcog/SD_sampling_diffcog
 Z_diffnoncog <- diffnoncog/SD_sampling_diffnoncog
@@ -433,6 +453,9 @@ Z_diffratio <- diffratio/SD_sampling_diffratio
 P_diffcog <- 2*pnorm(-abs(Z_diffcog))
 P_diffnoncog <- 2*pnorm(-abs(Z_diffnoncog))
 P_diffratio <- 2*pnorm(-abs(Z_diffratio))
+
+
 compare <- cbind(Z_diffcog, P_diffcog, Z_diffnoncog, P_diffnoncog, Z_diffratio, P_diffratio)
 
-#write.table(compare, "/mnt/lustre/groups/teds/rosa/noncog/results/Ztests_siblings_TEDS_16_040820.csv", row.names=T, quote=F)
+write.table(compare, "/mnt/lustre/groups/teds/rosa/noncog/results/Ztests_siblings_TEDS_16_150421.csv", row.names=T, quote=F)
+
