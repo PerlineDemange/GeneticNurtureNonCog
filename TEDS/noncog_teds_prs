@@ -159,13 +159,14 @@ finalsib$GPS_W_Cog <- finalsib$scoreCog_sc  - finalsib$GPS_B_Cog
 
 age12<-finalsib[complete.cases(finalsib$lt3a1),]
 
-# intercept model
-m0 <- lme(lt3a1_sc~1, random=~1|id_fam, method="ML", na.action=na.omit,data=age12)
 #calculate ICCs
 ICCest <- function(model) {
   icc <- sqrt(diag(getVarCov(model)))^2 / (sqrt(diag(getVarCov(model)))^2 + model$sigma^2 )
   as.vector(icc)
 }
+
+# intercept model
+m0 <- lme(lt3a1_sc~1, random=~1|id_fam, method="ML", na.action=na.omit,data=age12)
 ICCest(m0) #get ICC 
 
 #check ICCs for PGS as well:
@@ -184,6 +185,7 @@ summary(final12)
 
 # population effect model (w. covariates)
 pop12 <- lme(lt3a1_sc~scoreNonCog_sc +  scoreCog_sc+ sex1 +  Batch + ltqage1 + sex1*ltqage1 + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, random=~1|id_fam, method="ML", na.action=na.omit, data=age12)
+
 summary(pop12)
 
 
@@ -219,6 +221,7 @@ bootcoef<-function(data,index){
   	random=~1|id_fam, method="ML", na.action=na.omit, data=datx,control=lmeControl(opt = "optim"))
   fixef(mod) #get fixed effects
 }
+
 # carry out bootstrap
 boot.out<-boot(finalsibf,bootcoef,nboot, parallel = "multicore", ncpus=20) 
 #Save t output of boot
@@ -237,6 +240,7 @@ bootcoef2<-function(data,index){
   	random=~1|id_fam, method="ML", na.action=na.omit, data=datx,control=lmeControl(opt = "optim"))
   fixef(mod2) #get fixed effects
 }
+
 # carry out bootstrap
 boot.out2<-boot(finalsibf,bootcoef2,nboot, parallel = "multicore", ncpus=20) 
 #Save t output of boot
@@ -316,7 +320,12 @@ write.table(compare, "/mnt/lustre/groups/teds/rosa/noncog/results/Ztests_sibling
 ############################################
 ############################################
 
-age16<-finalsib[complete.cases(finalsib$lt3a1),]
+age16<-finalsib[complete.cases(finalsib$pcexgcsecorem1_sc),]
+#calculate ICCs
+ICCest <- function(model) {
+  icc <- sqrt(diag(getVarCov(model)))^2 / (sqrt(diag(getVarCov(model)))^2 + model$sigma^2 )
+  as.vector(icc)
+}
 
 # intercept model
 m0 <- lme(pcexgcsecorem1_sc~1, random=~1|id_fam, method="ML", na.action=na.omit,data=age16)
@@ -363,11 +372,12 @@ nboot <- 10000
 
 bootcoef<-function(data,index){
   datx<-finalsibf[index,]
-  mod<-lme(pcexgcsecorem1~GPS_B_NonCog + GPS_B_Cog + GPS_W_NonCog + GPS_W_Cog + 
+  mod<-lme(pcexgcsecorem1_sc~GPS_B_NonCog + GPS_B_Cog + GPS_W_NonCog + GPS_W_Cog + 
   	sex1 +  Batch + pcexgcseage1 + sex1*pcexgcseage1 + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, 
   	random=~1|id_fam, method="ML", na.action=na.omit, data=datx,control=lmeControl(opt = "optim"))
   fixef(mod) #get fixed effects
 }
+
 # carry out bootstrap
 boot.out<-boot(finalsibf,bootcoef,nboot, parallel = "multicore", ncpus=20) 
 #Save t output of boot
@@ -381,7 +391,7 @@ original$direct_Cog <- original$GPS_W_Cog
 # bootstrap model to get pop effect.
 bootcoef2<-function(data,index){
   datx<-finalsibf[index,]
-  mod2<-lme(pcexgcsecorem1~scoreNonCog_sc +  scoreCog_sc + 
+  mod2<-lme(pcexgcsecorem1_sc~scoreNonCog_sc +  scoreCog_sc + 
   	sex1 +  Batch + pcexgcseage1 + sex1*pcexgcseage1 + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, 
   	random=~1|id_fam, method="ML", na.action=na.omit, data=datx,control=lmeControl(opt = "optim"))
   fixef(mod2) #get fixed effects
