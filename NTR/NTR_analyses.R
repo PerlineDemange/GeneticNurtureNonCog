@@ -12,6 +12,7 @@ library(dplyr)
 library("gee")
 library(nlme)
 library(boot)
+library(lmer)
 set.seed(42)
 #setwd("C:/Users/Admin/Documents/GeneticNurtureNonCog/NTR")
 
@@ -295,9 +296,10 @@ hist(finalsib$EA_sc)
 
 ## Save data
 #write.table(finalsib, "Data_siblings_NTR_EA_20200531.csv", row.names=F, quote=F)
-#finalsib <- fread("Data_siblings_NTR_EA_20200531.csv", colClasses=c("FISNumber"="character"))
+finalsib <- fread("Data_siblings_NTR_EA_20200531.csv", colClasses=c("FISNumber"="character"))
 # head(finalsib)
 
+#setwd("C:/Users/PDE430/Dropbox/PhD/Genetic Nurture/Submission_NHB/R1/New_results/NTR")
 
 # * * 2.2.4 ICC  -----
 # ICC: functions written by Saskia Selzam, from Selzam et al. 2019
@@ -332,7 +334,53 @@ m0 <- lme(SCORE.NonCog~1,
           data=finalsib)
 ICCest(m0) 
 
+# Carry out bootstrap
+# this suggested method uses sjstats but the package doesnt load properly https://stats.stackexchange.com/questions/232252/intraclass-correlation-standard-error
+# I do it using the same boot method as for the other bootstraped SE 
+nboot <- 1000
 
+bootcoef_EA<-function(data,index){
+  datx<-data[index,]
+  mod <- lme(EA_sc~1, 
+             random=~1|FamilyNumber, 
+             method="ML", 
+             na.action=na.omit,
+             data=datx, 
+             control=lmeControl(opt = "optim")) #problem with convergence otherwise
+  ICCest(mod) #get icc 
+}
+bootcoef_scoreNonCog<-function(data,index){
+  datx<-data[index,]
+  mod <- lme(SCORE.NonCog~1, 
+            random=~1|FamilyNumber, 
+            method="ML", 
+            na.action=na.omit,
+            data=datx, 
+            control=lmeControl(opt = "optim")) #problem with convergence otherwise
+  ICCest(mod) #get icc 
+}
+
+bootcoef_scoreCog<-function(data,index){
+  datx<-data[index,]
+  mod <- lme(SCORE.Cog~1, 
+             random=~1|FamilyNumber, 
+             method="ML", 
+             na.action=na.omit,
+             data=datx, 
+             control=lmeControl(opt = "optim")) #problem with convergence otherwise
+  ICCest(mod) #get icc 
+}
+
+
+boot.ea <- boot(finalsib,bootcoef_EA,nboot, parallel = "multicore", ncpus=20) 
+boot.ea$t0 # estimate is different than previous from 5th decimal because of the control optim
+sd(boot.ea$t)
+boot.noncog <- boot(finalsib,bootcoef_scoreNonCog,nboot, parallel = "multicore", ncpus=20) 
+boot.noncog$t0
+sd(boot.noncog$t) #the standard deviation of the bootstrap estimates is the standard error of the sample estimates
+boot.cog <- boot(finalsib,bootcoef_scoreCog,nboot, parallel = "multicore", ncpus=20) 
+boot.cog$t0
+sd(boot.cog$t)
 
 # * * 2.2.5 Simple linear model -----
 
@@ -342,6 +390,7 @@ global <- lm(EA_sc ~ scoreNonCog_sc + scoreCog_sc + sex + yob + sex*yob +
 summary(global)
 
 # * * 2.2.6 Create between-family and within-family estimates of PGS -----
+
 # Between-family estimate = average per family
 meanNC<-group_by(finalsib,FamilyNumber) %>% summarize(m=mean(scoreNonCog_sc))
 colnames(meanNC) <- c("FamilyNumber", "GPS_B_NonCog")
@@ -358,107 +407,127 @@ cor.test(finalsib$GPS_W_NonCog, finalsib$GPS_B_NonCog) #-6.097644e-18 p=1
 cor.test(finalsib$GPS_W_Cog, finalsib$GPS_B_Cog) #3.261838e-18  p=1
 
 
-# * * 2.2.7 Run mixed model between-within regression -----
-final <- lme(EA_sc~GPS_B_NonCog + GPS_B_Cog + GPS_W_NonCog + GPS_W_Cog + 
-               sex + yob + sex*yob +
-               Platform + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10,
-             random=~1|FamilyNumber, 
-             method="ML", 
-             na.action=na.omit,
-             data=finalsib)
-summary(final)
+# * * 2.2.8 Run analyses indirect = population - within -------
+# * * * 2.2.8.1 Run mixed model between-within regression and population regression -----
+
+pop <- lmer(EA_sc ~ scoreNonCog_sc + scoreCog_sc + sex + yob + sex*yob + 
+       Platform + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10 + 
+       (1|FamilyNumber), 
+     na.action=na.omit, data=finalsib)
 
 
-# Extract estimates 
-names(summary(final))
-summary(final)$tTable
-# Value    Std.Error   DF    t-value      p-value
-# (Intercept)  -14.238502310  8.259188949 1838 -1.7239589 8.488342e-02
-# GPS_B_NonCog   0.259302293  0.023793454 1306 10.8980520 1.569952e-26
-# GPS_B_Cog      0.234767971  0.023928715 1306  9.8111398 5.666971e-22
-# GPS_W_NonCog   0.116504076  0.026178616 1838  4.4503528 9.087021e-06
-# GPS_W_Cog      0.156129061  0.025660112 1838  6.0845044 1.418435e-09
-
-#write.table(summary(final)$tTable, "Estimates_Siblings_NTR_EA_20200531.csv", quote=F )
-
-direct_NonCog <- summary(final)$tTable[4,1]# direct effect is beta within 
-direct_Cog <- summary(final)$tTable[5,1]
-total_NonCog <- summary(final)$tTable[2,1] # total is beta between 
-total_Cog <- summary(final)$tTable[3,1]
-indirect_NonCog <- total_NonCog - direct_NonCog 
-indirect_Cog <- total_Cog - direct_Cog 
-ratio_NonCog <- indirect_NonCog/direct_NonCog  
-ratio_Cog <- indirect_Cog/direct_Cog  
-ratio_tot_NonCog <- indirect_NonCog/total_NonCog 
-ratio_tot_Cog <- indirect_Cog/total_Cog 
+summary(pop)
+# Estimate Std. Error t value
+# (Intercept)    -14.607554   8.277799  -1.765
+# scoreNonCog_sc   0.195154   0.017655  11.053
+# scoreCog_sc      0.200491   0.017543  11.429
+# sex            -22.220955   4.690888  -4.737
+# yob              0.007469   0.004137   1.805
+# Platform        -0.005217   0.007785  -0.670
 
 
-# * * 2.2.8 Bootstrapping ------
+pop <- lm(EA_sc ~ scoreNonCog_sc + scoreCog_sc + sex + yob + sex*yob + 
+              Platform + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10,
+            na.action=na.omit, data=finalsib)
+summary(pop)
+# Estimate Std. Error t value Pr(>|t|)    
+# (Intercept)    -14.061656   8.514623  -1.651   0.0987 .  
+# scoreNonCog_sc   0.222696   0.016820  13.240  < 2e-16 ***
+#   scoreCog_sc      0.214030   0.016806  12.735  < 2e-16 ***
+#   sex            -23.697878   4.980031  -4.759 2.04e-06 ***
+#   yob              0.007260   0.004263   1.703   0.0887 .  
+# Platform        -0.002901   0.007660  -0.379   0.7049    
+
+within <- lmer(EA_sc ~ GPS_B_NonCog + GPS_B_Cog + GPS_W_NonCog + GPS_W_Cog + sex + yob + sex*yob + 
+              Platform + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10 + 
+              (1|FamilyNumber), 
+            na.action=na.omit, data=finalsib)
+# summary(within)
+# Fixed effects:
+#   Estimate Std. Error t value
+# (Intercept)  -14.234331   8.258626  -1.724
+# GPS_B_NonCog   0.259295   0.023817  10.887
+# GPS_B_Cog      0.234764   0.023952   9.801
+# GPS_W_NonCog   0.116503   0.026161   4.453
+# GPS_W_Cog      0.156133   0.025642   6.089
+# sex          -22.470003   4.680304  -4.801
+
+
+within <- lm(EA_sc ~ GPS_B_NonCog + GPS_B_Cog + GPS_W_NonCog + GPS_W_Cog + sex + yob + sex*yob + 
+                 Platform + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10,
+               na.action=na.omit, data=finalsib)
+summary(within)
+# Coefficients:
+#   Estimate Std. Error t value Pr(>|t|)    
+# (Intercept)  -13.627436   8.496112  -1.604 0.108823    
+# GPS_B_NonCog   0.263239   0.019789  13.302  < 2e-16 ***
+#   GPS_B_Cog      0.235377   0.019932  11.809  < 2e-16 ***
+#   GPS_W_NonCog   0.116882   0.031675   3.690 0.000228 ***
+#   GPS_W_Cog      0.155010   0.031047   4.993 6.28e-07 ***
+#   sex          -23.945139   4.969193  -4.819 1.51e-06 ***
+coef(within)
+
+# * * * 2.2.8.2 Bootstrapping -----
+
 nboot <- 10000
-bootcoef<-function(data,index){
+both_EA <- function(data,index){
   datx<-data[index,]
-  mod<-lme(EA_sc~GPS_B_NonCog + GPS_B_Cog + GPS_W_NonCog + GPS_W_Cog + 
-               sex + yob + sex*yob +
-               Platform + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, 
-           random=~1|FamilyNumber, 
-           method="ML", 
-           na.action=na.omit, 
-           data=datx, 
-           control=lmeControl(opt = "optim")) #need this optimizer to reach convergence
-  fixef(mod) #get fixed effects
+  modpop<-lm(EA_sc ~ scoreNonCog_sc + scoreCog_sc +
+            sex + yob + sex*yob +
+            Platform + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10,
+          na.action=na.omit,
+          data=datx)
+  modwithin<-lm(EA_sc~GPS_B_NonCog + GPS_B_Cog + GPS_W_NonCog + GPS_W_Cog +
+            sex + yob + sex*yob +
+            Platform + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10,
+          na.action=na.omit,
+          data=datx)
+  results <- c(coef(modpop), coef(modwithin)) #get fixed effects
+  results
 }
-
-# Carry out bootstrap
-boot.out<-boot(finalsib,bootcoef,nboot, parallel = "multicore", ncpus=20) 
-
-#saveRDS(boot.out, "bootstrapped_output_siblings_NTR_EA_20200531.Rda")
-#boot.out <- readRDS("bootstrapped_output_siblings_NTR_EA_20200531.Rda")
+both_EA_lm_boot<-boot(finalsib,both_EA,nboot, parallel = "multicore", ncpus=4)
+saveRDS(both_EA_lm_boot, "bootstrapped_output_siblings_NTR_EA_both_lm_20210519.Rda")
 
 # Plot to check bootstrapping
-png("NTR.sib.EA.bootstrap_20200531.png",
+png("NTR.sib.EA.bootstrap_within_lm_20210519_both.png",
     width = 10,
     height = 6,
     units = 'in',
     res = 600)
-plot(boot.out)
+plot(both_EA_lm_boot)
 dev.off()
 
 
 # Save t output of boot
-bootoutput <- as.data.frame(boot.out$t)
-colnames(bootoutput) <- rownames(as.data.frame(boot.out$t0))
-head(bootoutput)
-#write.table(bootoutput, "Data_scores_siblings_NTR_EA_bootstrapped_20200531.csv", 
-#              row.names=F, quote=F)
+bootoutput <- as.data.frame(both_EA_lm_boot$t)
+colnames(bootoutput) <- colnames(as.data.frame(t(both_EA_lm_boot$t0)))
 
 # Get values out of boot.out for all estimates + create indirect and ratio estimates
-original <- as.data.frame(t(boot.out$t0)) # estimates of the original sample #best estimates of the effects
-
+original <- as.data.frame(t(both_EA_lm_boot$t0))
 original$direct_NonCog <- original$GPS_W_NonCog
 original$direct_Cog <- original$GPS_W_Cog
-original$total_NonCog <- original$GPS_B_NonCog
-original$total_Cog <- original$GPS_B_Cog
-original$indirect_NonCog <- original$total_NonCog - original$direct_NonCog
-original$indirect_Cog <- original$total_Cog - original$direct_Cog
+original$pop_NonCog <- original$scoreNonCog_sc
+original$pop_Cog <- original$scoreCog_sc
+original$indirect_NonCog <- original$pop_NonCog - original$direct_NonCog
+original$indirect_Cog <- original$pop_Cog - original$direct_Cog
 original$ratio_NonCog <- original$indirect_NonCog / original$direct_NonCog
 original$ratio_Cog <- original$indirect_Cog / original$direct_Cog
-original$ratio_tot_NonCog <- original$indirect_NonCog / original$total_NonCog
-original$ratio_tot_Cog <- original$indirect_Cog / original$total_Cog
-
+original$ratio_pop_NonCog <- original$indirect_NonCog / original$pop_NonCog
+original$ratio_pop_Cog <- original$indirect_Cog / original$pop_Cog
 
 bootoutput$direct_NonCog <- bootoutput$GPS_W_NonCog
 bootoutput$direct_Cog <- bootoutput$GPS_W_Cog
-bootoutput$total_NonCog <- bootoutput$GPS_B_NonCog
-bootoutput$total_Cog <- bootoutput$GPS_B_Cog
-bootoutput$indirect_NonCog <- bootoutput$total_NonCog - bootoutput$direct_NonCog
-bootoutput$indirect_Cog <- bootoutput$total_Cog - bootoutput$direct_Cog
+bootoutput$pop_NonCog <- bootoutput$scoreNonCog_sc
+bootoutput$pop_Cog <- bootoutput$scoreCog_sc
+bootoutput$indirect_NonCog <- bootoutput$pop_NonCog - bootoutput$direct_NonCog
+bootoutput$indirect_Cog <- bootoutput$pop_Cog - bootoutput$direct_Cog
 bootoutput$ratio_NonCog <- bootoutput$indirect_NonCog / bootoutput$direct_NonCog
 bootoutput$ratio_Cog <- bootoutput$indirect_Cog / bootoutput$direct_Cog
-bootoutput$ratio_tot_NonCog <- bootoutput$indirect_NonCog / bootoutput$total_NonCog
-bootoutput$ratio_tot_Cog <- bootoutput$indirect_Cog / bootoutput$total_Cog
-
+bootoutput$ratio_pop_NonCog <- bootoutput$indirect_NonCog / bootoutput$pop_NonCog
+bootoutput$ratio_pop_Cog <- bootoutput$indirect_Cog / bootoutput$pop_Cog
 
 mean <- apply(bootoutput, 2, mean) # mean of the estimates of the bootstrap resamples
+
 bias <- mean - original
 se <- apply(bootoutput, 2, sd) #the standard deviation of the bootstrap estimates is the standard error of the sample estimates
 
@@ -473,21 +542,22 @@ rightCI <- original - bias + error
 
 statsoutput <- rbind(original, mean, bias, se, error, leftCI, rightCI)
 statsoutput$Estimates <- c('original', 'mean', 'bias', 'se', 'error', 'leftCI', 'rightCI')
-statsoutput
-tot <- statsoutput[,c(ncol(statsoutput), 1:(ncol(statsoutput)-1))]
+tot <- statsoutput[,(ncol(statsoutput)-10):ncol(statsoutput)] # get only summary statistics 
+tot <- tot[,c(ncol(tot), 1:(ncol(tot)-1))]
 tot
 
-write.table(tot, "summary_mean_CI_siblings_NTR_EA_20200531.csv", row.names=T, quote=F)
+write.table(tot, "summary_mean_CI_siblings_NTR_EA_pop_lm_20210519_BOTH.csv", row.names=T, quote=F)
+write.table(statsoutput, "full_summary_mean_CI_siblings_NTR_EA_pop_lm_20210519_BOTH.csv", row.names=T, quote=F)
 
-# * * 2.2.9  Comparing estimates ------
+# * * * 2.2.8.3  Comparing estimates ------
 
 diffcog <- original$direct_Cog - original$indirect_Cog 
 diffnoncog <- original$direct_NonCog - original$indirect_NonCog
-diffratio  <- original$ratio_tot_Cog - original$ratio_tot_NonCog
+diffratio  <- original$ratio_pop_Cog - original$ratio_pop_NonCog
 
 SD_sampling_diffcog <- sd(bootoutput$direct_Cog - bootoutput$indirect_Cog)
 SD_sampling_diffnoncog <- sd(bootoutput$direct_NonCog - bootoutput$indirect_NonCog)
-SD_sampling_diffratio <- sd(bootoutput$ratio_tot_Cog - bootoutput$ratio_tot_NonCog)
+SD_sampling_diffratio <- sd(bootoutput$ratio_pop_Cog - bootoutput$ratio_pop_NonCog)
 
 Z_diffcog <- diffcog/SD_sampling_diffcog
 Z_diffnoncog <- diffnoncog/SD_sampling_diffnoncog
@@ -499,7 +569,7 @@ P_diffratio <- 2*pnorm(-abs(Z_diffratio))
 
 compare <- cbind(Z_diffcog, P_diffcog, Z_diffnoncog, P_diffnoncog, Z_diffratio, P_diffratio)
 
-#write.table(compare, "Ztests_sib_NTR_EA_20200531.csv", row.names=T, quote=F)
+write.table(compare, "Ztests_sib_NTR_EA_pop_lm_20210519.csv", row.names=T, quote=F)
 
 
 # * 2.3 Siblings analyses with CITO ==============================
@@ -560,7 +630,7 @@ hist(finalsib$scoreCog_sc)
 
 ## Save data
 # write.table(finalsib, "Data_siblings_NTR_CITO_20200511.csv", row.names=F, quote=F)
-#finalsib <- fread("Data_siblings_NTR_CITO_20200511.csv", colClasses=c("FISNumber"="character"))
+finalsib <- fread("Data_siblings_NTR_CITO_20200511.csv", colClasses=c("FISNumber"="character"))
 
 # * * 2.3.2 ICC  -----
 m0 <- lme(CITO_sc~1, 
@@ -585,13 +655,62 @@ m0 <- lme(SCORE.NonCog~1,
           data=finalsib)
 ICCest(m0) 
 
+# Carry out bootstrap
+nboot <- 1000
+
+bootcoef_CITO<-function(data,index){
+  datx<-data[index,]
+  mod <- lme(CITO_sc~1, 
+             random=~1|FamilyNumber, 
+             method="ML", 
+             na.action=na.omit,
+             data=datx, 
+             control=lmeControl(opt = "optim")) #problem with convergence otherwise
+  ICCest(mod) #get icc 
+}
+bootcoef_scoreNonCog<-function(data,index){
+  datx<-data[index,]
+  mod <- lme(SCORE.NonCog~1, 
+             random=~1|FamilyNumber, 
+             method="ML", 
+             na.action=na.omit,
+             data=datx, 
+             control=lmeControl(opt = "optim")) #problem with convergence otherwise
+  ICCest(mod) #get icc 
+}
+
+bootcoef_scoreCog<-function(data,index){
+  datx<-data[index,]
+  mod <- lme(SCORE.Cog~1, 
+             random=~1|FamilyNumber, 
+             method="ML", 
+             na.action=na.omit,
+             data=datx, 
+             control=lmeControl(opt = "optim")) #problem with convergence otherwise
+  ICCest(mod) #get icc 
+}
+
+
+boot.cito <- boot(finalsib,bootcoef_CITO,nboot, parallel = "multicore", ncpus=20) 
+boot.cito$t0 # estimate is different than previous from 5th decimal because of the control optim
+sd(boot.cito$t)
+boot.noncog <- boot(finalsib,bootcoef_scoreNonCog,nboot, parallel = "multicore", ncpus=20) 
+boot.noncog$t0
+sd(boot.noncog$t) #the standard deviation of the bootstrap estimates is the standard error of the sample estimates
+boot.cog <- boot(finalsib,bootcoef_scoreCog,nboot, parallel = "multicore", ncpus=20) 
+boot.cog$t0
+sd(boot.cog$t)
+
+
+
 # * * 2.3.2 Simple linear model -----
 
 global <- lm(CITO_sc ~ scoreNonCog_sc + scoreCog_sc + sex + yob + sex*yob +
                Platform + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, data=finalsib)
 summary(global)
 
-# * * 2.3.3 Create between-family and within-family estimates of PGS -------------
+# * * 2.3.3 Run analyses indirect = between - within --------
+# * * * 2.3.3.1 Create between-family and within-family estimates of PGS -------------
 # Between-family estimate = average per family
 meanNC<-group_by(finalsib,FamilyNumber) %>% summarize(m=mean(scoreNonCog_sc))
 colnames(meanNC) <- c("FamilyNumber", "GPS_B_NonCog")
@@ -608,96 +727,98 @@ cor.test(finalsib$GPS_W_NonCog, finalsib$GPS_B_NonCog) #-2.231701e-18  p=1
 cor.test(finalsib$GPS_W_Cog, finalsib$GPS_B_Cog) #8.14536e-18  p=1
 
 
-# * * 2.3.4 Run mixed model between-within regression ------------------
-final <- lme(CITO_sc~GPS_B_NonCog + GPS_B_Cog + GPS_W_NonCog + GPS_W_Cog + 
-               sex + yob + sex*yob + 
-               Platform + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, random=~1|FamilyNumber, method="ML", na.action=na.omit,data=finalsib)
-summary(final)
+# * * * 2.3.3.2 Run mixed model between-within regression ------------------
 
-# Extract estimates 
-names(summary(final))
-summary(final)$tTable
-# Value    Std.Error  DF     t-value      p-value
-# (Intercept)   1.416429e+01  42.93422408 858  0.32990677 7.415509e-01
-# GPS_B_NonCog  1.759328e-01   0.03406690 754  5.16433315 3.090748e-07
-# GPS_B_Cog     3.212078e-01   0.03382041 754  9.49745298 2.772288e-20
-# GPS_W_NonCog  1.845122e-01   0.03782887 858  4.87754932 1.280036e-06
-# GPS_W_Cog     2.326259e-01   0.03866158 858  6.01697913 2.629687e-09
-
-#write.table(summary(final)$tTable, "Estimates_Siblings_NTR_CITO_20200511.csv", quote=F )
-
-
-direct_NonCog <- summary(final)$tTable[4,1]# direct effect is beta within 
-direct_Cog <- summary(final)$tTable[5,1]
-total_NonCog <- summary(final)$tTable[2,1] # total is beta between 
-total_Cog <- summary(final)$tTable[3,1]
-indirect_NonCog <- total_NonCog - direct_NonCog 
-indirect_Cog <- total_Cog - direct_Cog 
-ratio_NonCog <- indirect_NonCog/direct_NonCog  
-ratio_Cog <- indirect_Cog/direct_Cog  
-ratio_tot_NonCog <- indirect_NonCog/total_NonCog
-ratio_tot_Cog <- indirect_Cog/total_Cog 
-
-# * * 2.3.5 Bootstrapping ------------
+# * * * 2.3.3.3 Bootstrapping ------------
 nboot <- 10000
-bootcoef<-function(data,index){
+both_CITO_lm<-function(data,index){
   datx<-data[index,]
-  mod<-lme(CITO_sc~GPS_B_NonCog + GPS_B_Cog + GPS_W_NonCog + GPS_W_Cog + 
-               sex + yob + sex*yob +
-               Platform + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, 
-           random=~1|FamilyNumber,
-           method="ML", 
-           na.action=na.omit, 
-           data=datx, 
-           control=lmeControl(opt = "optim"))
-  fixef(mod) #get fixed effects
+  modpop<-lm(CITO_sc ~ scoreNonCog_sc + scoreCog_sc + 
+            sex + yob + sex*yob +
+            Platform + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, 
+          na.action=na.omit, 
+          data=datx) 
+  modwithin<-lm(CITO_sc~GPS_B_NonCog + GPS_B_Cog + GPS_W_NonCog + GPS_W_Cog + 
+            sex + yob + sex*yob +
+            Platform + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, 
+          na.action=na.omit, 
+          data=datx) 
+  results <- c(coef(modpop), coef(modwithin))
+  results
 }
 
-# Carry out bootstrap
-boot.out<-boot(finalsib,bootcoef,nboot, parallel = "multicore", ncpus=20) 
+both_CITO_lm_boot<-boot(finalsib,both_CITO_lm,nboot, parallel = "multicore", ncpus=4)
+saveRDS(both_CITO_lm_boot, "bootstrapped_output_siblings_NTR_CITO_both_lm_20210519.Rda")
 
-#saveRDS(boot.out, "bootstrapped_output_siblings_NTR_CITO_20200511.Rda")
-#boot.out <- readRDS("bootstrapped_output_siblings_NTR_CITO_20200511.Rda")
+# attempt cluster bloostrap 
+
+# data <- finalsib
+# fams <- unique(data$FamilyNumber)
+# results_all = list()
+# for (replicate in 1:nboot){ 
+#   sampled_fams <- sample(fams,size=length(fams),replace=T)
+#   data.boot <- data[data$FamilyNumber == sampled_fams[1],] 
+#   
+#   for(i in 2:length(sampled_fams)){
+#     data.boot <- rbind(data.boot,data[data$FamilyNumber == sampled_fams[i],])
+#   }
+#   modpop<-lm(CITO_sc ~ scoreNonCog_sc + scoreCog_sc + sex + yob + sex*yob +
+#             Platform + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10,
+#           na.action=na.omit,
+#           data=data.boot)
+#   modwithin <- lm(CITO_sc ~  GPS_B_NonCog + GPS_B_Cog + GPS_W_NonCog + GPS_W_Cog + sex + yob + sex*yob +
+#                 Platform + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10,
+#               na.action=na.omit,
+#               data=data.boot)
+#   results <- c(coef(modpop), coef(modwithin))
+#   results_all[[replicate]] <- results
+# } 
+# big_data = do.call(rbind, results_all)
+# res <- as.data.frame(big_data)
+# res
+# saveRDS(results, "clusterbootstrap-cito_test_20210519.Rda")
+# 
+# original <- results[1,]
+# bootoutput <- results[2:nrow(results), ]
+
 
 # Plot to check bootstrapping
-png("NTR.sib.CITO.bootstrap_20200511.png",
+png("NTR.sib.CITO.bootstrap_within_lm_20210519_both.png",
     width = 10,
     height = 6,
     units = 'in',
     res = 600)
-plot(boot.out)
+plot(both_CITO_lm_boot)
 dev.off()
 
 # Save t output of boot
-bootoutput <- as.data.frame(boot.out$t)
-colnames(bootoutput) <- rownames(as.data.frame(boot.out$t0))
-head(bootoutput)
-# write.table(bootoutput, "Data_scores_siblings_NTR_CITO_bootstrapped_20200511.csv", row.names=F, quote=F)
+bootoutput <- as.data.frame(both_CITO_lm_boot$t)
+colnames(bootoutput) <- colnames(as.data.frame(t(both_CITO_lm_boot$t0)))
+
 
 # Get values out of boot.out for all estimates + create indirect and ratio estimates
-original <- as.data.frame(t(boot.out$t0)) # estimates of the original sample #best estimates of the effects
-
+original <- as.data.frame(t(both_CITO_lm_boot$t0))
 original$direct_NonCog <- original$GPS_W_NonCog
 original$direct_Cog <- original$GPS_W_Cog
-original$total_NonCog <- original$GPS_B_NonCog
-original$total_Cog <- original$GPS_B_Cog
-original$indirect_NonCog <- original$total_NonCog - original$direct_NonCog
-original$indirect_Cog <- original$total_Cog - original$direct_Cog
+original$pop_NonCog <- original$scoreNonCog_sc
+original$pop_Cog <- original$scoreCog_sc
+original$indirect_NonCog <- original$pop_NonCog - original$direct_NonCog
+original$indirect_Cog <- original$pop_Cog - original$direct_Cog
 original$ratio_NonCog <- original$indirect_NonCog / original$direct_NonCog
 original$ratio_Cog <- original$indirect_Cog / original$direct_Cog
-original$ratio_tot_NonCog <- original$indirect_NonCog / original$total_NonCog
-original$ratio_tot_Cog <- original$indirect_Cog / original$total_Cog
+original$ratio_pop_NonCog <- original$indirect_NonCog / original$pop_NonCog
+original$ratio_pop_Cog <- original$indirect_Cog / original$pop_Cog
 
 bootoutput$direct_NonCog <- bootoutput$GPS_W_NonCog
 bootoutput$direct_Cog <- bootoutput$GPS_W_Cog
-bootoutput$total_NonCog <- bootoutput$GPS_B_NonCog
-bootoutput$total_Cog <- bootoutput$GPS_B_Cog
-bootoutput$indirect_NonCog <- bootoutput$total_NonCog - bootoutput$direct_NonCog
-bootoutput$indirect_Cog <- bootoutput$total_Cog - bootoutput$direct_Cog
+bootoutput$pop_NonCog <- bootoutput$scoreNonCog_sc
+bootoutput$pop_Cog <- bootoutput$scoreCog_sc
+bootoutput$indirect_NonCog <- bootoutput$pop_NonCog - bootoutput$direct_NonCog
+bootoutput$indirect_Cog <- bootoutput$pop_Cog - bootoutput$direct_Cog
 bootoutput$ratio_NonCog <- bootoutput$indirect_NonCog / bootoutput$direct_NonCog
 bootoutput$ratio_Cog <- bootoutput$indirect_Cog / bootoutput$direct_Cog
-bootoutput$ratio_tot_NonCog <- bootoutput$indirect_NonCog / bootoutput$total_NonCog
-bootoutput$ratio_tot_Cog <- bootoutput$indirect_Cog / bootoutput$total_Cog
+bootoutput$ratio_pop_NonCog <- bootoutput$indirect_NonCog / bootoutput$pop_NonCog
+bootoutput$ratio_pop_Cog <- bootoutput$indirect_Cog / bootoutput$pop_Cog
 
 mean <- apply(bootoutput, 2, mean) # mean of the estimates of the bootstrap resamples
 bias <- mean - original
@@ -706,24 +827,30 @@ se <- apply(bootoutput, 2, sd) #the standard deviation of the bootstrap estimate
 error <- qnorm(0.975)*se
 leftCI <- original - bias - error # normal Ci from boot.ci 
 rightCI <- original - bias + error
+# Other kind of CI given by boot.ci, not saved
+# leftCI3 <- quantile(bootoutput$X, 0.025) # percentile CI from boot.ci 
+# rightCI3 <- quantile(bootoutput$X, 0.975)
+# leftCI4 <- 2*original$SCORE.Nontrans.Cog_sc - quantile(bootoutput$SCORE.Nontrans.Cog_sc, 0.975) #basic ci from boot.ci
+# rightCI4 <- 2*original$SCORE.Nontrans.Cog_sc - quantile(bootoutput$SCORE.Nontrans.Cog_sc, 0.025)
 
 statsoutput <- rbind(original, mean, bias, se, error, leftCI, rightCI)
 statsoutput$Estimates <- c('original', 'mean', 'bias', 'se', 'error', 'leftCI', 'rightCI')
-statsoutput
-tot <- statsoutput[,c(ncol(statsoutput), 1:(ncol(statsoutput)-1))]
+tot <- statsoutput[,(ncol(statsoutput)-10):ncol(statsoutput)] # get only summary statistics 
+tot <- tot[,c(ncol(tot), 1:(ncol(tot)-1))]
 tot
 
-# write.table(tot, "summary_mean_CI_siblings_NTR_CITO_20200511.csv", row.names=T, quote=F)
+write.table(tot, "summary_mean_CI_siblings_NTR_CITO_both_lm_20210519.csv", row.names=T, quote=F)
+write.table(statsoutput, "full_summary_mean_CI_siblings_NTR_CITO_both_lm_20210519.csv", row.names=T, quote=F)
 
-# * * 2.3.6  Comparing estimates ------
+# * * * 2.3.3.4  Comparing estimates ------
 
 diffcog <- original$direct_Cog - original$indirect_Cog 
 diffnoncog <- original$direct_NonCog - original$indirect_NonCog
-diffratio  <- original$ratio_tot_Cog - original$ratio_tot_NonCog
+diffratio  <- original$ratio_pop_Cog - original$ratio_pop_NonCog
 
 SD_sampling_diffcog <- sd(bootoutput$direct_Cog - bootoutput$indirect_Cog)
 SD_sampling_diffnoncog <- sd(bootoutput$direct_NonCog - bootoutput$indirect_NonCog)
-SD_sampling_diffratio <- sd(bootoutput$ratio_tot_Cog - bootoutput$ratio_tot_NonCog)
+SD_sampling_diffratio <- sd(bootoutput$ratio_pop_Cog - bootoutput$ratio_pop_NonCog)
 
 Z_diffcog <- diffcog/SD_sampling_diffcog
 Z_diffnoncog <- diffnoncog/SD_sampling_diffnoncog
@@ -735,7 +862,7 @@ P_diffratio <- 2*pnorm(-abs(Z_diffratio))
 
 compare <- cbind(Z_diffcog, P_diffcog, Z_diffnoncog, P_diffnoncog, Z_diffratio, P_diffratio)
 
-#write.table(compare, "Ztests_sib_NTR_CITO_20200531.csv", row.names=T, quote=F)
+write.table(compare, "Ztests_sib_NTR_CITO_pop_lm_20210519.csv", row.names=T, quote=F)
 
 
 # 3.  Trios analyses #####################################
@@ -990,68 +1117,75 @@ EA_bothparents_coef <- summary(EA_bothparents_lme)$tTable
 # SCORE.Trans.Cog_sc         0.218014744 2.127095e-02 1179 10.24941439 1.132108e-23
 # SCORE.Trans.NonCog_sc      0.208268342 2.136085e-02 1179  9.75000307 1.182153e-21
 
-#write.table(EA_bothparents_coef, "Estimates_Trios_NTR_EA_20200531.csv", quote=F )
+# With lmer 
+EA_bothparents_lmer <- lmer(EA_sc ~ SCORE.Nontrans.Cog_sc + SCORE.Nontrans.NonCog_sc + 
+                              SCORE.Trans.Cog_sc + SCORE.Trans.NonCog_sc +
+                              sex + yob + sex*yob + 
+                              Platform + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10 +
+                              (1|FamilyNumber), 
+                            na.action=na.omit,
+                            data=datatriosEA)
 
-total_NonCog <- EA_bothparents_coef[5,1] # total is transmitted
-total_Cog <- EA_bothparents_coef[4,1]
-indirect_NonCog <- EA_bothparents_coef[3,1] #indirect is nontransmitted
-indirect_Cog <- EA_bothparents_coef[2,1]
-direct_NonCog <- total_NonCog - indirect_NonCog 
-direct_Cog <- total_Cog - indirect_Cog 
-ratio_NonCog <- indirect_NonCog/direct_NonCog  
-ratio_Cog <- indirect_Cog/direct_Cog  
-ratio_tot_NonCog <- indirect_NonCog/total_NonCog 
-ratio_tot_Cog <- indirect_Cog/total_Cog 
+
+EA_bothparents_coef <- summary(EA_bothparents_lmer)$coef
+# Estimate   Std. Error     t value
+# (Intercept)              -16.656773215 1.790068e+01 -0.93051077
+# SCORE.Nontrans.Cog_sc      0.111747135 2.105637e-02  5.30704629
+# SCORE.Nontrans.NonCog_sc   0.109488989 2.171474e-02  5.04215054
+# SCORE.Trans.Cog_sc         0.218051532 2.128665e-02 10.24358167
+# SCORE.Trans.NonCog_sc      0.208306463 2.137697e-02  9.74443197
+
+#with lm 
+EA_bothparents_lm <- lm(EA_sc ~ SCORE.Nontrans.Cog_sc + SCORE.Nontrans.NonCog_sc + 
+                              SCORE.Trans.Cog_sc + SCORE.Trans.NonCog_sc +
+                              sex + yob + sex*yob + 
+                              Platform + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10,
+                            na.action=na.omit,
+                            data=datatriosEA)
+
+summary(EA_bothparents_lm)$coef
+# Estimate   Std. Error    t value     Pr(>|t|)
+# (Intercept)              -27.562336917 17.815292207 -1.5471167 1.219609e-01
+# SCORE.Nontrans.Cog_sc      0.116457472  0.019495586  5.9735301 2.650275e-09
+# SCORE.Nontrans.NonCog_sc   0.110935736  0.020089376  5.5221096 3.693079e-08
+# SCORE.Trans.Cog_sc         0.212502332  0.019695673 10.7892904 1.461459e-26
+# SCORE.Trans.NonCog_sc      0.204760609  0.019784320 10.3496412 1.300221e-24
 
 
 # * * * 3.2.2.1 Bootstrapping ------
 nboot <- 10000
-# gee doesn't always converge when bootstrapping
-# bootcoef<-function(data,index){
-#   datx<-data[index,]
-#   mod<-gee(EA_sc ~ SCORE.Nontrans.Cog_sc + SCORE.Nontrans.NonCog_sc + SCORE.Trans.Cog_sc + SCORE.Trans.NonCog_sc +
-#               sex + yob + sex*yob + 
-#               Platform + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, id = FamilyNumber, data=datx, corstr = "exchangeable")  
-#   mod$coefficients
-#     }
 
-bootcoef<-function(data,index){
+trio_EA_lm<-function(data,index){
   datx<-data[index,]
-  mod <- lme(EA_sc ~ SCORE.Nontrans.Cog_sc + SCORE.Nontrans.NonCog_sc + 
+  mod <- lm(EA_sc ~ SCORE.Nontrans.Cog_sc + SCORE.Nontrans.NonCog_sc + 
                SCORE.Trans.Cog_sc + SCORE.Trans.NonCog_sc +
                sex + yob + sex*yob + 
                Platform + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, 
-             random=~1|FamilyNumber, 
-             method="ML", 
              na.action=na.omit, 
-             data=datx, 
-             control=lmeControl(opt = "optim"))
-  fixef(mod) #get fixed effects
+             data=datx)
+  coef(mod) #get fixed effects
 }
 
-boot.out<-boot(datatriosEA, bootcoef, nboot, parallel = "multicore", ncpus=20) 
-boot.out
+trio_EA_lm_boot<-boot(datatriosEA, trio_EA_lm, nboot, parallel = "multicore", ncpus=20) 
 
-#saveRDS(boot.out, "bootstrapped_output_trios_NTR_EA_20200531.Rda")
-#boot.out <- readRDS("bootstrapped_output_trios_NTR_EA_20200531.Rda")
+saveRDS(trio_EA_lm_boot, "bootstrapped_output_trios_NTR_EA_lm_20210518.Rda")
+
 
 # Plot to check bootstrapping
-png("NTR.trios.EA.bootstrap_lme_20200531.png",
+png("NTR.trios.EA.bootstrap_lm_20210518.png",
     width = 10,
     height = 6,
     units = 'in',
     res = 600)
-plot(boot.out)
+plot(trio_EA_lm_boot)
 dev.off()
 
 # Save t output of boot
-bootoutput <- as.data.frame(boot.out$t)
-colnames(bootoutput) <- rownames(as.data.frame(boot.out$t0))
-head(bootoutput)
-#write.table(bootoutput, "Data_scores_trios_NTR_EA_bootstrapped_20200531.csv", row.names=F, quote=F)
+bootoutput <- as.data.frame(trio_EA_lm_boot$t)
+colnames(bootoutput) <- rownames(as.data.frame(trio_EA_lm_boot$t0))
 
 # Get values out of boot.out for all estimates + create direct and ratio estimates
-original <- as.data.frame(t(boot.out$t0)) # estimates of the original sample #best estimates of the effects
+original <- as.data.frame(t(trio_EA_lm_boot$t0)) # estimates of the original sample #best estimates of the effects
 
 original$total_NonCog <- original$SCORE.Trans.NonCog_sc
 original$total_Cog <- original$SCORE.Trans.Cog_sc
@@ -1085,11 +1219,12 @@ rightCI <- original - bias + error
 
 statsoutput <- rbind(original, mean, bias, se, error, leftCI, rightCI)
 statsoutput$Estimates <- c('original', 'mean', 'bias', 'se', 'error', 'leftCI', 'rightCI')
-statsoutput
-tot <- statsoutput[,c(ncol(statsoutput), 1:(ncol(statsoutput)-1))]
+tot <- statsoutput[,(ncol(statsoutput)-10):ncol(statsoutput)] # get only summary statistics 
+tot <- tot[,c(ncol(tot), 1:(ncol(tot)-1))]
 tot
 
-#write.table(tot, "summary_mean_CI_trios_NTR_EA_20200531.csv", row.names=T, quote=F)
+write.table(tot, "summary_mean_CI_trios_NTR_EA_lm_20210518.csv", row.names=T, quote=F)
+write.table(statsoutput, "full_summary_mean_CI_trios_NTR_EA_lm_20210518.csv", row.names=T, quote=F)
 
 # * * * 3.2.2.2  Comparing estimates ------
 
@@ -1111,7 +1246,7 @@ P_diffratio <- 2*pnorm(-abs(Z_diffratio))
 
 compare <- cbind(Z_diffcog, P_diffcog, Z_diffnoncog, P_diffnoncog, Z_diffratio, P_diffratio)
 
-#write.table(compare, "Ztests_trio_NTR_EA_20200531.csv", row.names=T, quote=F)
+#write.table(compare, "Ztests_trio_NTR_EA_lm_20210518.csv", row.names=T, quote=F)
 
 
 # * * 3.2.3 Difference between parents -----
@@ -1222,70 +1357,77 @@ CITO_bothparents_coef
 # SCORE.Trans.Cog_sc         0.247163802   0.03004616 743  8.22613736 8.634499e-16
 # SCORE.Trans.NonCog_sc      0.193004072   0.02906860 743  6.63960644 6.071255e-11
 
-#write.table(CITO_bothparents_coef, "Estimates_Trios_NTR_CITO_20200531.csv", quote=F )
+# With lmer 
+CITO_bothparents_lmer <- lmer(CITO_sc ~ SCORE.Nontrans.Cog_sc + SCORE.Nontrans.NonCog_sc + 
+                                SCORE.Trans.Cog_sc + SCORE.Trans.NonCog_sc +
+                                sex + yob + sex*yob + 
+                                Platform + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10 +
+                                (1|FamilyNumber), 
+                              na.action=na.omit,
+                              data=datatriosCITO)
 
-# Extract estimates
-total_NonCog <- CITO_bothparents_coef[5,1] # total is transmitted
-total_Cog <- CITO_bothparents_coef[4,1]
-indirect_NonCog <- CITO_bothparents_coef[3,1] #indirect is nontransmitted
-indirect_Cog <- CITO_bothparents_coef[2,1]
-direct_NonCog <- total_NonCog - indirect_NonCog 
-direct_Cog <- total_Cog - indirect_Cog 
-ratio_NonCog <- indirect_NonCog/direct_NonCog  
-ratio_Cog <- indirect_Cog/direct_Cog  
-ratio_tot_NonCog <- indirect_NonCog/total_NonCog 
-ratio_tot_Cog <- indirect_Cog/total_Cog 
+
+CITO_bothparents_coef <- summary(CITO_bothparents_lmer)$coef
+# Estimate   Std. Error    t value
+# (Intercept)               31.103345926  45.68429794  0.6808323
+# SCORE.Nontrans.Cog_sc      0.021347397   0.02922093  0.7305515
+# SCORE.Nontrans.NonCog_sc   0.033199483   0.02887419  1.1497981
+# SCORE.Trans.Cog_sc         0.247232299   0.03008516  8.2177495
+# SCORE.Trans.NonCog_sc      0.193175570   0.02910538  6.6371084
+# sex                       -4.161521368  27.18219484 -0.1530973
+
+# With lm
+CITO_bothparents_lm <- lm(CITO_sc ~ SCORE.Nontrans.Cog_sc + SCORE.Nontrans.NonCog_sc + 
+                                SCORE.Trans.Cog_sc + SCORE.Trans.NonCog_sc +
+                                sex + yob + sex*yob + 
+                                Platform + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10,
+                              na.action=na.omit,
+                              data=datatriosCITO)
+
+
+summary(CITO_bothparents_lm)$coef
+# Estimate   Std. Error     t value     Pr(>|t|)
+# (Intercept)               3.529924e+00  45.03817117  0.07837628 9.375391e-01
+# SCORE.Nontrans.Cog_sc     3.681950e-02   0.02625972  1.40212846 1.610828e-01
+# SCORE.Nontrans.NonCog_sc  5.998932e-02   0.02634373  2.27717611 2.291532e-02
+# SCORE.Trans.Cog_sc        2.395812e-01   0.02728953  8.77923345 4.376377e-18
+# SCORE.Trans.NonCog_sc     1.703371e-01   0.02660949  6.40136573 2.051608e-10
+
 
 # * * * 3.3.2.1 Bootstrapping ------
 nboot <- 10000
 
-# Bootstrapping with gee is not really reliable, several iterations do not converge
-# bootcoef<-function(data,index){
-#   datx <- data[index,]
-#   datx <- datx[order(datx$FamilyNumber),] 
-#   mod <- gee(CITO_sc ~ SCORE.Nontrans.Cog_sc + SCORE.Nontrans.NonCog_sc + SCORE.Trans.Cog_sc + SCORE.Trans.NonCog_sc +
-#               sex + yob + sex*yob +
-#               Platform + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, id = FamilyNumber, data=datx, corstr = "exchangeable", silent=T)
-#   mod$coefficients
-# }
-
-bootcoef<-function(data,index){
+trio_CITO_lm<-function(data,index){
   datx<-data[index,]
-  mod <- lme(CITO_sc ~ SCORE.Nontrans.Cog_sc + SCORE.Nontrans.NonCog_sc + 
+  mod <- lm(CITO_sc ~ SCORE.Nontrans.Cog_sc + SCORE.Nontrans.NonCog_sc + 
                SCORE.Trans.Cog_sc + SCORE.Trans.NonCog_sc +
                sex + yob + sex*yob + 
                Platform + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, 
-             random=~1|FamilyNumber, 
-             method="ML", 
              na.action=na.omit, 
-             data=datx, 
-             control=lmeControl(opt = "optim"))
-  fixef(mod) #get fixed effects
+             data=datx)
+  coef(mod) #get fixed effects
 }
 
-boot.out<-boot(datatriosCITO, bootcoef, nboot, parallel = "multicore", ncpus=20) 
-boot.out
-#saveRDS(boot.out, "bootstrapped_output_trios_NTR_CITO_20200531.Rda")
-boot.out <- readRDS("bootstrapped_output_trios_NTR_CITO_20200531.Rda")
+trio_CITO_lm_boot<-boot(datatriosCITO, trio_CITO_lm, nboot, parallel = "multicore", ncpus=4) 
+saveRDS(trio_CITO_lm_boot, "bootstrapped_output_trios_NTR_CITO_lm_20210518.Rda")
+
 
 # Plot to check bootstrapping
-png("NTR.trios.CITO.bootstrap_lme_2020531.png",
+png("NTR.trios.CITO.bootstrap_lm_20210518.png",
     width = 10,
     height = 6,
     units = 'in',
     res = 600)
-plot(boot.out)
+plot(trio_CITO_lm_boot)
 dev.off()
 
 # Save t output of boot
-bootoutput <- as.data.frame(boot.out$t)
-colnames(bootoutput) <- rownames(as.data.frame(boot.out$t0))
+bootoutput <- as.data.frame(trio_CITO_lm_boot$t)
+colnames(bootoutput) <- rownames(as.data.frame(trio_CITO_lm_boot$t0))
 head(bootoutput)
-#write.table(bootoutput, "Data_scores_trios_NTR_CITO_bootstrapped_20200531.csv", 
-#            row.names=F, quote=F)
 
 # Get values out of boot.out for all estimates + create direct and ratio estimates
-original <- as.data.frame(t(boot.out$t0)) # estimates of the original sample #best estimates of the effects
+original <- as.data.frame(t(trio_CITO_lm_boot$t0)) # estimates of the original sample #best estimates of the effects
 
 original$total_NonCog <- original$SCORE.Trans.NonCog_sc
 original$total_Cog <- original$SCORE.Trans.Cog_sc
@@ -1320,11 +1462,12 @@ rightCI <- original - bias + error
 
 statsoutput <- rbind(original, mean, bias, se, error, leftCI, rightCI)
 statsoutput$Estimates <- c('original', 'mean', 'bias', 'se', 'error', 'leftCI', 'rightCI')
-statsoutput
-tot <- statsoutput[,c(ncol(statsoutput), 1:(ncol(statsoutput)-1))]
+tot <- statsoutput[,(ncol(statsoutput)-10):ncol(statsoutput)] # get only summary statistics 
+tot <- tot[,c(ncol(tot), 1:(ncol(tot)-1))]
 tot
 
-#write.table(tot, "summary_mean_CI_trios_NTR_CITO_20200531.csv", row.names=T, quote=F)
+write.table(tot, "summary_mean_CI_trios_NTR_CITO_lm_20210518.csv", row.names=T, quote=F)
+write.table(statsoutput, "full_summary_mean_CI_trios_NTR_CITO_lm_20210518.csv", row.names=T, quote=F)
 
 # * * * 3.3.2.2  Comparing estimates ------
 
@@ -1346,7 +1489,8 @@ P_diffratio <- 2*pnorm(-abs(Z_diffratio))
 
 
 compare <- cbind(Z_diffcog, P_diffcog, Z_diffnoncog, P_diffnoncog, Z_diffratio, P_diffratio)
-#write.table(compare, "Ztests_trio_NTR_CITO_20200531.csv", row.names=T, quote=F)
+
+write.table(compare, "Ztests_trio_NTR_CITO_lm_20210518.csv", row.names=T, quote=F)
 
 
 # * * 3.3.3 Analyses with PGS from parents separately  -------
@@ -1447,7 +1591,7 @@ datatrios_sibef <- rbind(datasib1, datasib2) #2352
 datatrios_sibCITO <- datatrios_sibef[!is.na(datatrios_sibef$CITO_sc),] #N=675
 
 
-
+# here we use lme and not lm becasue we do not bootstrap the SE (and trio method so no issues found in the simulation with using lme)
 CITO_sib <- lme(CITO_sc ~ SCORE.Nontrans.Cog_sc + SCORE.Nontrans.NonCog_sc + 
                               SCORE.Trans.Cog_sc.sib1 + SCORE.Trans.NonCog_sc.sib1 +
                               SCORE.Trans.Cog_sc.sib2 + SCORE.Trans.NonCog_sc.sib2 +
