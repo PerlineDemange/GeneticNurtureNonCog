@@ -69,10 +69,14 @@ sd(finaladop$EA) #5.0796
 summary(finaladop$scoreNonCogrev)
 # Min.    1st Qu.     Median       Mean    3rd Qu.       Max.
 # -3.450e-07 -1.420e-07 -1.001e-07 -1.003e-07 -5.839e-08  1.374e-07
+sd(finaladop$scoreNonCogrev)
+var(finaladop$scoreNonCogrev)
 
 summary(finaladop$scoreCogrev)
 # Min.    1st Qu.     Median       Mean    3rd Qu.       Max.
 # -8.309e-07 -3.894e-07 -2.845e-07 -2.840e-07 -1.772e-07  2.223e-07
+sd(finaladop$scoreCogrev)
+var(finaladop$scoreCogrev)
 
 cor(finaladop$scoreNonCogrev,finaladop$scoreCogrev) # -0.2858899
 
@@ -117,12 +121,93 @@ sd(finalcontrol$EA) #5.126729
 summary(finalcontrol$scoreNonCogrev)
 # Min.    1st Qu.     Median       Mean    3rd Qu.       Max.
 # -3.507e-07 -1.370e-07 -9.544e-08 -9.419e-08 -5.166e-08  1.611e-07
+sd(finalcontrol$scoreNonCogrev)
+var(finalcontrol$scoreNonCogrev)
 
 summary(finalcontrol$scoreCogrev)
 # Min.    1st Qu.     Median       Mean    3rd Qu.       Max.
 # -8.228e-07 -3.656e-07 -2.626e-07 -2.617e-07 -1.585e-07  2.849e-07
+sd(finalcontrol$scoreCogrev)
+var(finalcontrol$scoreCogrev)
 
 cor(finalcontrol$scoreNonCogrev,finalcontrol$scoreCogrev) #-0.2625942
+
+
+# difference between groups
+
+var.test(finaladop$EA, finalcontrol$EA) #p=0.4583 so no heteroskedasticity
+var(finaladop$EA)
+var(finalcontrol$EA)
+t.test(finaladop$EA, finalcontrol$EA, var.equal = TRUE)
+# Two Sample t-test
+# 
+# data:  finaladop$EA and finalcontrol$EA
+# t = -4.847, df = 12905, p-value = 1.268e-06
+# alternative hypothesis: true difference in means is not equal to 0
+# 95 percent confidence interval:
+#   -0.6115761 -0.2593626
+# sample estimates:
+#   mean of x mean of y
+# 13.49945  13.93492
+
+var.test(finaladop$scoreNonCogrev, finalcontrol$scoreNonCogrev) # 0.07
+var(finaladop$scoreNonCogrev)
+var(finalcontrol$scoreNonCogrev)
+t.test(finaladop$scoreNonCogrev, finalcontrol$scoreNonCogrev, var.equal = T)
+# Two Sample t-test
+# 
+# data:  finaladop$scoreNonCogrev and finalcontrol$scoreNonCogrev
+# t = -5.5009, df = 12905, p-value = 3.85e-08
+# alternative hypothesis: true difference in means is not equal to 0
+# 95 percent confidence interval:
+#   -8.240574e-09 -3.910715e-09
+# sample estimates:
+#   mean of x     mean of y
+# -1.002678e-07 -9.419218e-08
+var.test(finaladop$scoreCogrev, finalcontrol$scoreCogrev) # 0.2862
+var(finaladop$scoreCogrev)
+var(finalcontrol$scoreCogrev)
+t.test(finaladop$scoreCogrev, finalcontrol$scoreCogrev, var.equal = T)
+# data:  finaladop$scoreCogrev and finalcontrol$scoreCogrev
+# t = -8.1252, df = 12905, p-value = 4.87e-16
+# alternative hypothesis: true difference in means is not equal to 0
+# 95 percent confidence interval:
+#   -2.766943e-08 -1.691401e-08
+# sample estimates:
+#   mean of x     mean of y
+# -2.840410e-07 -2.617492e-07
+
+library(effsize)
+
+finaladop$Adopted <- "Yes"
+finalcontrol$Adopted <- "No"
+final <- rbind(finaladop, finalcontrol)
+
+cohen.d(EA ~ Adopted, final)
+# Cohen's d
+# 
+# d estimate: 0.08532946 (negligible)
+# 95 percent confidence interval:
+#      lower      upper
+# 0.05080594 0.11985297
+
+cohen.d(scoreNonCogrev ~ Adopted, final)
+
+# Cohen's d
+# 
+# d estimate: 0.09684251 (negligible)
+# 95 percent confidence interval:
+#      lower      upper
+# 0.06231447 0.13137054
+
+cohen.d(scoreCogrev ~ Adopted, final)
+# 
+# d estimate: 0.1430421 (negligible)
+# 95 percent confidence interval:
+#   lower     upper
+# 0.1084902 0.1775940
+
+
 
 # Save data
 #####################
