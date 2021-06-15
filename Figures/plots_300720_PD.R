@@ -54,7 +54,7 @@ plot_A <- ggplot(all,aes(y=estimate, x=PGS, fill=factor(PGSxEffect))) +
         legend.text = element_text(size=14, margin = margin(t=1, b=1, unit="lines")))+
   #scale_fill_manual(values=c( "orange","yellow","blue","light blue"))   +
   scale_fill_manual(values=c(  "#ff9900","#0033cc","#ffcc66", "#3399ff"))   +
-  ggtitle("A. Meta-analytic results") +
+  #ggtitle("A. Meta-analytic results") +
   labs(y = "Effect of polygenic score on educational outcome", x = " ") +
   geom_errorbar(aes(ymin = est3-1.96*se, ymax = est3+1.96*se), width = 0.06) +
   scale_y_continuous(breaks = seq(0, 0.30, by = 0.05))
@@ -281,7 +281,7 @@ plot_C <-
   labs(y = "Effect of polygenic score on educational outcome", x = " ") +
   facet_grid(~Method, scales="free", space="free") +
   scale_color_manual(values=c( "#ff9900","#ffcc66", "#0033cc", "#3399ff")) +
-  ggtitle("C. Educational attainment by method") +
+  #ggtitle("C. Educational attainment by method") +
   geom_hline(yintercept=0, linetype="dashed")+
   geom_vline(xintercept=1.5, linetype="dotted")+
   scale_shape_manual(values=c(21, 24, 25, 22, 23, 18)) 
@@ -544,10 +544,9 @@ plot_B <-
         strip.background=element_rect(fill="white"))+
   facet_grid(~pheno+Sample, scales="free", space="free") +
   scale_color_manual(values=c("#ff9900", "#ffcc66", "#0033cc",  "#3399ff")) +
-  #ggtitle("12yo and Adult outcomes, Sibling method") +
   geom_hline(yintercept=0, linetype="dashed")+
   geom_vline(xintercept=1.5, linetype="dotted")+
-  ggtitle("B. Sibling method by cohort") +
+  #ggtitle("B. Sibling method by cohort") +
   scale_shape_manual(values=c(21, 24, 25, 22, 23, 18))
 plot_B
 grid.newpage()
