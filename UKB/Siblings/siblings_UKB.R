@@ -1,6 +1,6 @@
 # Rosa Cheesman & Perline Demange 
 # PRS analysis of sib comparison in UKBiobank
-# 24.02.20 - 30-03-2020
+# 24.02.20 - 30-03-2020 - 19-05-2021
 
 # Get interactive node on LISA
 #ssh pdemange@login4.lisa.surfsara.nl
@@ -63,6 +63,7 @@ library(data.table)
 library(psych)
 library(nlme)
 library(boot)
+library(dplyr)
 
 set.seed(42)
 
@@ -171,11 +172,11 @@ ICCest <- function(model) {
 m0 <- lme(EA_sc~1, random=~1|FID, method="ML", na.action=na.omit,data=finalsib)
 ICCest(m0) #get ICC #0.3258229
 
-m0 <- lme(scoreNoNCogrev~1, 
+m0 <- lme(scoreNonCog_sc~1, 
           random=~1|FID, 
           method="ML", 
           na.action=na.omit,
-          data=finalsib)
+          data=finalsib, control=lmeControl(opt = "optim"))
 ICCest(m0) # 0.5255507  #when using standardized measure, found 0.5255509
 
 
@@ -186,11 +187,61 @@ m0 <- lme(scoreCog_sc~1,
           data=finalsib) #convergence issue when not standardized, use standardized 
 ICCest(m0) #0.5292896
 
+# Carry out bootstrap
+nboot <- 1000
+
+bootcoef_EA<-function(data,index){
+  datx<-data[index,]
+  mod <- lme(EA_sc~1, 
+             random=~1|FID, 
+             method="ML", 
+             na.action=na.omit,
+             data=datx, 
+             control=lmeControl(opt = "optim")) #problem with convergence otherwise
+  ICCest(mod) #get icc 
+}
+
+bootcoef_scoreNonCog<-function(data,index){
+  datx<-data[index,]
+  mod <- lme(scoreNonCog_sc~1, 
+             random=~1|FID, 
+             method="ML", 
+             na.action=na.omit,
+             data=datx, 
+             control=lmeControl(opt = "optim")) #problem with convergence otherwise
+  ICCest(mod) #get icc 
+}
+
+bootcoef_scoreCog<-function(data,index){
+  datx<-data[index,]
+  mod <- lme(scoreCog_sc~1, 
+             random=~1|FID, 
+             method="ML", 
+             na.action=na.omit,
+             data=datx, 
+             control=lmeControl(opt = "optim")) #problem with convergence otherwise
+  ICCest(mod) #get icc 
+}
+
+## try other optimizers
+
+boot.ea <- boot(finalsib,bootcoef_EA,nboot, parallel = "multicore", ncpus=14) 
+boot.ea$t0 # 0.3258231  estimate is different than previous from 5th decimal because of the control optim
+sd(boot.ea$t) #0.004590459 the standard deviation of the bootstrap estimates is the standard error of the sample estimates
+boot.noncog <- boot(finalsib,bootcoef_scoreNonCog,nboot, parallel = "multicore", ncpus=14) 
+boot.noncog$t0 #0.5256068
+sd(boot.noncog$t) # 0.003528444 
+boot.cog <- boot(finalsib,bootcoef_scoreCog,nboot, parallel = "multicore", ncpus=14) 
+boot.cog$t0 #0.5293449
+sd(boot.cog$t) #0.003449969
+
+
+
 
 # Create between family estimates of PGS: average across family member
 ######################################################################
 
-library(dplyr)
+
 meanNC<-group_by(finalsib,FID) %>% summarize(m=mean(scoreNonCog_sc))
 colnames(meanNC) <- c("FID", "GPS_B_NonCog")
 meanC<-group_by(finalsib,FID) %>% summarize(m=mean(scoreCog_sc)) #19389 rows
@@ -208,6 +259,9 @@ cor.test(finalsib$GPS_W_NonCog, finalsib$GPS_B_NonCog) #-7.066594e-19 p=1
 cor.test(finalsib$GPS_W_Cog, finalsib$GPS_B_Cog) #7.562188e-19  p=1
 
 
+# 1. Analyses with  indirect = bteween - within ##################
+######################################################################
+
 # Mixed effects model
 ######################
 
@@ -216,86 +270,96 @@ final <- lme(EA_sc~GPS_B_NonCog + GPS_B_Cog + GPS_W_NonCog + GPS_W_Cog +
                PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, 
              random=~1|FID, method="ML", na.action=na.omit,data=finalsib)
 summary(final)
+# Value Std.Error    DF   t-value p-value
+# (Intercept)   1.0804198 0.0520973 20095  20.73848  0.0000
+# GPS_B_NonCog  0.2674314 0.0064073 19386  41.73850  0.0000
+# GPS_B_Cog     0.2813860 0.0063180 19386  44.53717  0.0000
+# GPS_W_NonCog  0.1101560 0.0088315 20095  12.47315  0.0000
+# GPS_W_Cog     0.1234973 0.0088651 20095  13.93070  0.0000
+
+final <- lmer(EA_sc~GPS_B_NonCog + GPS_B_Cog + GPS_W_NonCog + GPS_W_Cog +
+               sex + array + Age + sex*Age + 
+               PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10 +
+                (1|FID), na.action=na.omit,data=finalsib)
+# Estimate Std. Error t value
+# (Intercept)   1.0804035  0.0520984  20.738
+# GPS_B_NonCog  0.2674312  0.0064079  41.735
+# GPS_B_Cog     0.2813859  0.0063186  44.533
+# GPS_W_NonCog  0.1101561  0.0088307  12.474
+# GPS_W_Cog     0.1234973  0.0088644  13.932
+# 
+
+final <- lm(EA_sc~GPS_B_NonCog + GPS_B_Cog + GPS_W_NonCog + GPS_W_Cog +
+                sex + array + Age + sex*Age + 
+                PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, na.action=na.omit,data=finalsib)
+# Coefficients:
+#   Estimate Std. Error t value Pr(>|t|)
+# (Intercept)   1.0983530  0.0507654  21.636  < 2e-16 ***
+#   GPS_B_NonCog  0.2678471  0.0056923  47.054  < 2e-16 ***
+#   GPS_B_Cog     0.2816461  0.0056110  50.195  < 2e-16 ***
+#   GPS_W_NonCog  0.1099937  0.0102424  10.739  < 2e-16 ***
+#   GPS_W_Cog     0.1234489  0.0102824  12.006  < 2e-16 ***
+#   sex          -0.4082619  0.0749141  -5.450 5.07e-08 ***
+  
 
 
-# Extract estimates 
-######################
-names(summary(final))
-summary(final)$tTable
-
-direct_NonCog <- summary(final)$tTable[4,1]# direct effect is beta within 
-direct_Cog <- summary(final)$tTable[5,1]
-total_NonCog <- summary(final)$tTable[2,1] # total is beta between 
-total_Cog <- summary(final)$tTable[3,1]
-indirect_NonCog <- total_NonCog - direct_NonCog #0.1572753
-indirect_Cog <- total_Cog - direct_Cog #0.1578887
-ratio_NonCog <- indirect_NonCog/direct_NonCog #1.42775
-ratio_Cog <- indirect_Cog/direct_Cog #1.278479
-
-
-# save results
-resultsib <- summary(final)$tTable
-#write.table(resultsib, file="Results_lme_siblings_UKB_20200401.csv", row.names=T, quote=F) #same results 0401 than 0529
-
-#################
-# Bootstrap 
-#################
+# 2. Analyses with  indirect = pop - within ##################
+######################################################################
 
 nboot <- 10000
-bootcoef<-function(data,index){
+
+both_lm<-function(data,index){
   datx<-data[index,]
-  mod<-lme(EA_sc~GPS_B_NonCog + GPS_B_Cog + GPS_W_NonCog + GPS_W_Cog + sex + array + Age + sex*Age + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, random=~1|FID, method="ML", na.action=na.omit, data=datx,control=lmeControl(opt = "optim"))
-  fixef(mod) #get fixed effects
+  modpop <- lm(EA_sc ~ scoreNonCog_sc + scoreCog_sc +
+              sex + array + Age + sex*Age + 
+              PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, na.action=na.omit, data=datx)
+  modwithin <-lm(EA_sc ~ GPS_B_NonCog + GPS_B_Cog + GPS_W_NonCog + GPS_W_Cog +
+              sex + array + Age + sex*Age + 
+              PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, na.action=na.omit, data=datx)
+  results <- c(coef(modpop), coef(modwithin))
+  results
 }
 
-# carry out bootstrap
-boot.out<-boot(finalsib,bootcoef,nboot, parallel = "multicore", ncpus=20) 
+both_lm_boot<-boot(finalsib, both_lm, nboot, parallel = "multicore", ncpus=4) 
+saveRDS(both_lm_boot, "bootstrapped_output_UKB_siblings_both_lm_20210519.Rda")
 
-saveRDS(boot.out, "bootstrapped_output_sib_UKB_EA_20200529.Rda")
-
-#plot to check bootstrapping
 options(bitmapType='cairo')
-png("UKB.sib.bootstrap_20200529.png",
+png("UKB.sib.bootstrap_both_lm_202105019.png",
     width = 10,
     height = 6,
     units = 'in',
     res = 600)
-plot(boot.out)
+plot(both_lm_boot)
 dev.off()
 
-# look at  CI
-boot.ci(boot.out, type = c("norm", "basic"))
 
-# save results for each bootstrap in data frame
-bootoutput <- as.data.frame(boot.out$t)
-colnames(bootoutput) <- rownames(as.data.frame(boot.out$t0))
-#write.table(bootoutput, "Data_scores_siblings_UKB_bootstrapped_2020529.csv", row.names=F, quote=F)
-
+bootoutput <- as.data.frame(both_lm_boot$t)
+colnames(bootoutput) <- colnames(as.data.frame(t(both_lm_boot$t0)))
 
 # Get values out of boot.out for all estimates + create indirect and ratio estimates
-original <- as.data.frame(t(boot.out$t0)) # estimates of the original sample #best estimates of the effects
-
+original <- as.data.frame(t(both_lm_boot$t0))
 original$direct_NonCog <- original$GPS_W_NonCog
 original$direct_Cog <- original$GPS_W_Cog
-original$total_NonCog <- original$GPS_B_NonCog
-original$total_Cog <- original$GPS_B_Cog
-original$indirect_NonCog <- original$total_NonCog - original$direct_NonCog
-original$indirect_Cog <- original$total_Cog - original$direct_Cog
+original$pop_NonCog <- original$scoreNonCog_sc
+original$pop_Cog <- original$scoreCog_sc
+original$indirect_NonCog <- original$pop_NonCog - original$direct_NonCog
+original$indirect_Cog <- original$pop_Cog - original$direct_Cog
 original$ratio_NonCog <- original$indirect_NonCog / original$direct_NonCog
 original$ratio_Cog <- original$indirect_Cog / original$direct_Cog
-original$ratio_tot_NonCog <- original$indirect_NonCog / original$total_NonCog
-original$ratio_tot_Cog <- original$indirect_Cog / original$total_Cog
+original$ratio_pop_NonCog <- original$indirect_NonCog / original$pop_NonCog
+original$ratio_pop_Cog <- original$indirect_Cog / original$pop_Cog
 
 bootoutput$direct_NonCog <- bootoutput$GPS_W_NonCog
 bootoutput$direct_Cog <- bootoutput$GPS_W_Cog
-bootoutput$total_NonCog <- bootoutput$GPS_B_NonCog
-bootoutput$total_Cog <- bootoutput$GPS_B_Cog
-bootoutput$indirect_NonCog <- bootoutput$total_NonCog - bootoutput$direct_NonCog
-bootoutput$indirect_Cog <- bootoutput$total_Cog - bootoutput$direct_Cog
+bootoutput$pop_NonCog <- bootoutput$scoreNonCog_sc
+bootoutput$pop_Cog <- bootoutput$scoreCog_sc
+bootoutput$indirect_NonCog <- bootoutput$pop_NonCog - bootoutput$direct_NonCog
+bootoutput$indirect_Cog <- bootoutput$pop_Cog - bootoutput$direct_Cog
 bootoutput$ratio_NonCog <- bootoutput$indirect_NonCog / bootoutput$direct_NonCog
 bootoutput$ratio_Cog <- bootoutput$indirect_Cog / bootoutput$direct_Cog
-bootoutput$ratio_tot_NonCog <- bootoutput$indirect_NonCog / bootoutput$total_NonCog
-bootoutput$ratio_tot_Cog <- bootoutput$indirect_Cog / bootoutput$total_Cog
+bootoutput$ratio_pop_NonCog <- bootoutput$indirect_NonCog / bootoutput$pop_NonCog
+bootoutput$ratio_pop_Cog <- bootoutput$indirect_Cog / bootoutput$pop_Cog
+
 
 mean <- apply(bootoutput, 2, mean) # mean of the estimates of the bootstrap resamples
 bias <- mean - original
@@ -304,30 +368,26 @@ se <- apply(bootoutput, 2, sd) #the standard deviation of the bootstrap estimate
 error <- qnorm(0.975)*se
 leftCI <- original - bias - error # normal Ci from boot.ci 
 rightCI <- original - bias + error
-# Other kind of CI given by boot.ci, not saved
-# leftCI3 <- quantile(bootoutput$X, 0.025) # percentile CI from boot.ci 
-# rightCI3 <- quantile(bootoutput$X, 0.975)
-# leftCI4 <- 2*original$SCORE.Nontrans.Cog_sc - quantile(bootoutput$SCORE.Nontrans.Cog_sc, 0.975) #basic ci from boot.ci
-# rightCI4 <- 2*original$SCORE.Nontrans.Cog_sc - quantile(bootoutput$SCORE.Nontrans.Cog_sc, 0.025)
 
 statsoutput <- rbind(original, mean, bias, se, error, leftCI, rightCI)
 statsoutput$Estimates <- c('original', 'mean', 'bias', 'se', 'error', 'leftCI', 'rightCI')
-statsoutput
-tot <- statsoutput[,c(ncol(statsoutput), 1:(ncol(statsoutput)-1))]
+tot <- statsoutput[,(ncol(statsoutput)-10):ncol(statsoutput)] # get only summary statistics 
+tot <- tot[,c(ncol(tot), 1:(ncol(tot)-1))]
 tot
 
-write.table(tot, "summary_mean_CI_siblings_UKB_20200529.csv", row.names=T, quote=F)
+write.table(tot, "summary_mean_CI_siblings_UKB_pop_lm_20210519_BOTH.csv", row.names=T, quote=F)
+write.table(statsoutput, "full_summary_mean_CI_siblings_UKB_pop_lm_20210519_BOTH.csv", row.names=T, quote=F)
 
 ### Compare estimates 
 ######################
 
 diffcog <- original$direct_Cog - original$indirect_Cog 
 diffnoncog <- original$direct_NonCog - original$indirect_NonCog
-diffratio  <- original$ratio_tot_Cog - original$ratio_tot_NonCog
+diffratio  <- original$ratio_pop_Cog - original$ratio_pop_NonCog
 
 SD_sampling_diffcog <- sd(bootoutput$direct_Cog - bootoutput$indirect_Cog)
 SD_sampling_diffnoncog <- sd(bootoutput$direct_NonCog - bootoutput$indirect_NonCog)
-SD_sampling_diffratio <- sd(bootoutput$ratio_tot_Cog - bootoutput$ratio_tot_NonCog)
+SD_sampling_diffratio <- sd(bootoutput$ratio_pop_Cog - bootoutput$ratio_pop_NonCog)
 
 Z_diffcog <- diffcog/SD_sampling_diffcog
 Z_diffnoncog <- diffnoncog/SD_sampling_diffnoncog
@@ -339,4 +399,4 @@ P_diffratio <- 2*pnorm(-abs(Z_diffratio))
 
 compare <- cbind(Z_diffcog, P_diffcog, Z_diffnoncog, P_diffnoncog, Z_diffratio, P_diffratio)
 
-#write.table(compare, "Ztests_sib_UKB_20200529.csv", row.names=T, quote=F)
+write.table(compare, "Ztests_sib_UKB_pop_lm_20210519.csv", row.names=T, quote=F)
