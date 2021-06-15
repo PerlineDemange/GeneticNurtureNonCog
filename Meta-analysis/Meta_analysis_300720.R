@@ -11,8 +11,8 @@ require(ggsci)
 # read in data (took summarised results supplementary file and split for cog non cog)
 #need to redo if results are not up to date.
 library(readxl)
-NONCOG_PGS <- read_excel("NONCOG_summarised_results_290720.xlsx")
-COG_PGS <- read_excel("COG_summarised_results_290720.xlsx")
+NONCOG_PGS <- read_excel("NONCOG_summarised_results_20210519.xlsx")
+COG_PGS <- read_excel("COG_summarised_results_20210519.xlsx")
 
 ##############################################################################################
 
@@ -30,12 +30,13 @@ forest(meta_reg_noncog_all_direct)
 
 
 #Compared with:
-meta_reg_noncog_all_direct <- rma.mv(yi = original,V = diag(se^2),random= ~ 1| Cohort,data=noncog_all_direct,slab = paste(Method, Cohort, Phenotype))
-meta_reg_noncog_all_direct <- rma.mv(yi = original,V = diag(se^2),random= ~ 1| Cohort/Method,data=noncog_all_direct,slab = paste(Method, Cohort, Phenotype))
-meta_reg_noncog_all_direct <- rma.mv(yi = original,V = diag(se^2),random= ~ 1| Cohort/Method/Phenotype,data=noncog_all_direct,slab = paste(Method, Cohort, Phenotype))
-meta_reg_noncog_all_direct <- rma.mv(yi = original,V = diag(se^2),random= ~ 1| Phenotype,data=noncog_all_direct,slab = paste(Method, Cohort, Phenotype))
-#without any random effect
-meta_reg_noncog_all_direct <- rma.mv(yi = original,V = diag(se^2),data=noncog_all_direct,slab = paste(Method, Cohort, Phenotype))
+# meta_reg_noncog_all_direct <- rma.mv(yi = original,V = diag(se^2),random= ~ 1| Cohort,data=noncog_all_direct,slab = paste(Method, Cohort, Phenotype))
+# meta_reg_noncog_all_direct <- rma.mv(yi = original,V = diag(se^2),random= ~ 1| Cohort/Method,data=noncog_all_direct,slab = paste(Method, Cohort, Phenotype))
+# meta_reg_noncog_all_direct <- rma.mv(yi = original,V = diag(se^2),random= ~ 1| Cohort/Method/Phenotype,data=noncog_all_direct,slab = paste(Method, Cohort, Phenotype))
+# meta_reg_noncog_all_direct <- rma.mv(yi = original,V = diag(se^2),random= ~ 1| Phenotype,data=noncog_all_direct,slab = paste(Method, Cohort, Phenotype))
+# #without any random effect
+# meta_reg_noncog_all_direct <- rma.mv(yi = original,V = diag(se^2),data=noncog_all_direct,slab = paste(Method, Cohort, Phenotype))
+
 #model with random intercept for methods has lowest AICc
 
 ### indirect
@@ -336,7 +337,7 @@ meta_all2 <- rbind(coef(summary(meta_reg_noncog_all_direct)),
       coef(summary(meta_reg_cog_all_indirect)))
 
 meta_all <- cbind(meta_all, meta_all2)
-#write.csv(meta_all, "meta_all_200730.csv", row.names=F)
+write.csv(meta_all, "meta_all_20210519.csv", row.names=F)
 
 #2. results per sample
 meta_sample<- as.data.frame(cbind(c(replicate(6, "NonCog"),replicate(6, "Cog")),
@@ -361,7 +362,7 @@ meta <- rbind(coef(summary(meta_reg_noncog_direct_UKB)),
 
 meta_sample <- cbind(meta_sample, meta)
 meta_sample
-#write.csv(meta_sample, "meta_sample_200730.csv", row.names=F)
+write.csv(meta_sample, "meta_sample_20210519.csv", row.names=F)
 
 
 #then do the same stratifying by method:
@@ -382,7 +383,7 @@ meta_method2 <- rbind(coef(summary(meta_reg_noncog_direct_sib)),
 
 meta_method <- cbind(meta_method, meta_method2)
 meta_method
-#write.csv(meta_method, "meta_method_200730.csv", row.names=F)
+write.csv(meta_method, "meta_method_20210519.csv", row.names=F)
 
 
 #4 per outcome (attainment adult vs child achievement)
@@ -402,7 +403,7 @@ meta_outcome2 <- rbind(coef(summary(meta_reg_noncog_direct_EA)),
 
 meta_outcome <- cbind(meta_outcome, meta_outcome2)
 meta_outcome
-#write.csv(meta_outcome, "meta_outcome_200730.csv", row.names=F)
+write.csv(meta_outcome, "meta_outcome_20210519.csv", row.names=F)
 
 
 # 5 per method only EA 
@@ -415,17 +416,18 @@ coef(summary(meta_reg_cog_direct_sib_EA)),
 coef(summary(meta_reg_cog_indirect_sib_EA))) 
 meta_methodEA <- cbind(meta_outcome, meta_methodEA2)
 meta_methodEA
-#write.csv(meta_methodEA, "meta_methodEA.csv", row.names=F)
+write.csv(meta_methodEA, "meta_methodEA_20210519.csv", row.names=F)
 
 # 6 total effect
 meta_total_effect <- rbind(coef(summary(meta_reg_cog_all_tot )), coef(summary(meta_reg_noncog_all_tot)))
 meta_total_effect$PGS <- rbind("Cog", "NonCog")
 meta_total_effect$Effect <- "Total"
 meta_total_effect
-#write.csv(meta_total_effect, "meta_total_effect.csv", row.names=F)
+write.csv(meta_total_effect, "meta_total_effect_20210519.csv", row.names=F)
+
 # 7 ratio
 meta_ratio <- rbind(coef(summary(meta_reg_cog_all_ratio )), coef(summary(meta_reg_noncog_all_ratio)))
 meta_ratio$PGS <- rbind("Cog", "NonCog")
 meta_ratio$Effect <- "Ratio"
 meta_ratio
-write.csv(meta_ratio, "meta_ratio.csv", row.names=F)
+write.csv(meta_ratio, "meta_ratio_20210519.csv", row.names=F)
