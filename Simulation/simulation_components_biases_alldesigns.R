@@ -14,6 +14,7 @@ run_sim <- function(sample_size, number_snp, var_g, var_mother, var_father, var_
   # var_sibling: variance explained by the sibling genotype 
   # var_prenatal: variance explained by the mother genotype (before birth)
   # r.assortment: correlation between parents' phenotypes 
+  # env_conf: environmental confounding, mean of the second populaiton used for simulating population stratification (mean of the first population is 0)
   
   # 1. WITHOUT ASSORTMENT AND POPSTRAT ------
   # 1.1 CREATE PGS --------
@@ -165,7 +166,7 @@ run_sim <- function(sample_size, number_snp, var_g, var_mother, var_father, var_
   adoptee_trait_sib <- sqrt(var_g)*adoptee_g + sqrt(var_e)*rnorm(n)
   
   
-  # let al "sibs" influence eachother and the adopted kid:
+  # let's siblings influence each other:
   temp_scores <- cbind(child_trait_sib,sib_trait_sib,adoptee_trait_sib)
   
   # siblign indirect parameter
@@ -195,7 +196,7 @@ run_sim <- function(sample_size, number_snp, var_g, var_mother, var_father, var_
   child_trait_ind_sib  <- sqrt(var_g)*child_g   + sqrt(var_mother)*mother_trait_ind_sib + sqrt(var_father)*father_trait_ind_sib + sqrt(var_e_parental)*rnorm(n)  
   adoptee_trait_ind_sib <- sqrt(var_g)*adoptee_g + sqrt(var_mother)*mother_trait_ind_sib + sqrt(var_father)*father_trait_ind_sib + sqrt(var_e_parental)*rnorm(n)
   
-  # let al "sibs" influence eachother and the adopted kid:
+  # let's siblings influence each other:
   temp_scores <- cbind(child_trait_ind_sib,sib_trait_ind_sib,adoptee_trait_ind_sib)
   
   # siblign indirect parameter
@@ -239,7 +240,7 @@ run_sim <- function(sample_size, number_snp, var_g, var_mother, var_father, var_
   biological_mothers <- rbinom(n,size = 2,prob = maf[1])
   biological_fathers <- rbinom(n,size = 2,prob = maf[1])
   # make SNP 2 to 100:
-  for(i in 2:100){
+  for(i in 2:number_snp){
     mother <- rbinom(n,size = 2,prob = maf[i])
     father <- rbinom(n,size = 2,prob = maf[i])
     biological_mother <- rbinom(n,size = 2,prob = maf[i])
@@ -423,9 +424,8 @@ run_sim <- function(sample_size, number_snp, var_g, var_mother, var_father, var_
   
   ### Shrink the precision of the effect, like in real GWAS:
   GWAS_eff <- sqrt(.2)*GWAS_eff1 + sqrt(.8)*shrink_eff
-
-  
   m.error2 <- cor(GWAS_eff,GWAS_eff1)
+  
 
   ### Create the target populations #### 
   # the target population contains the same two subpopulations as the GWAS 
@@ -1127,9 +1127,8 @@ for (simulation in 1:len){
 }
 
 
-save(all_simulations, file="all_simulations_100_20000_biggereffects_popstrat_210608.Rda")
+save(all_simulations, file="all_simulations_100_20000_biggereffects_popstrat_210616.Rda")
 #load("all_simulations_100_20000_biggereffects_210510.Rda")
-load("all_simulations_100_20000_biggereffects_popstrat_210608.Rda")
 
 
 # Figures #############################################################################
@@ -1169,9 +1168,9 @@ test <- sib %>%
   summarise(mean = mean(value))
 
 test
-sib$value[which(sib$design == "Truth" & sib$effect == "direct")] <- 0.316
+sib$value[which(sib$design == "Truth" & sib$effect == "direct")] <- 0.311
 sib$value[sib$design == "Truth" & sib$effect == "indirect" & sib$simulation == "noind"] <- 0
-sib$value[sib$design == "Truth" & sib$effect == "indirect" & sib$simulation == "ind"] <- 0.142
+sib$value[sib$design == "Truth" & sib$effect == "indirect" & sib$simulation == "ind"] <- 0.139
 sib$design <- as.character(sib$design)
 sib$design[which(sib$design == "Sibling")] <- "Sibling - between"
 
@@ -1245,16 +1244,16 @@ test <- all %>%
 
 test[test$design == "Truth",] 
 #CHECK VALUES
-all$value[which(all$design == "Truth" & all$effect == "direct")] <- 0.319
+all$value[which(all$design == "Truth" & all$effect == "direct")] <- 0.311
 all$value[all$design == "Truth" & all$effect == "indirect" & all$simulation == "noind"] <-0
-all$value[all$design == "Truth" & all$effect == "indirect" & all$simulation == "ind"] <- 0.101
-all$value[all$design == "Truth" & all$effect == "indirect" & all$simulation == "prenatal"] <- 0.101
+all$value[all$design == "Truth" & all$effect == "indirect" & all$simulation == "ind"] <- 0.139
+all$value[all$design == "Truth" & all$effect == "indirect" & all$simulation == "prenatal"] <- 0.139
 all$value[all$design == "Truth" & all$effect == "indirect" & all$simulation == "sib"] <- 0
-all$value[all$design == "Truth" & all$effect == "indirect" & all$simulation == "ind_sib"] <- 0.101
-all$value[all$design == "Truth" & all$effect == "indirect" & all$simulation == "AM_ind"] <- 0.101
+all$value[all$design == "Truth" & all$effect == "indirect" & all$simulation == "ind_sib"] <- 0.139
+all$value[all$design == "Truth" & all$effect == "indirect" & all$simulation == "AM_ind"] <- 0.139
 all$value[all$design == "Truth" & all$effect == "indirect" & all$simulation == "AM"] <- 0
-all$value[which(all$design == "Truth" & all$effect == "direct" & all$simulation == "popstrat_ind")] <- 0.240
-all$value[all$design == "Truth" & all$effect == "indirect" & all$simulation == "popstrat_ind"] <- 0.0758
+all$value[which(all$design == "Truth" & all$effect == "direct" & all$simulation == "popstrat_ind")] <- 0.231
+all$value[all$design == "Truth" & all$effect == "indirect" & all$simulation == "popstrat_ind"] <- 0.103
 all$value[all$design == "Truth" & all$effect == "indirect" & all$simulation == "popstrat"] <- 0
 
 allfig <- all[which(all$design != "Truth"),] 
@@ -1279,7 +1278,7 @@ ggplot(data=allfig, aes(x=simulation, y=value, fill=design))+
   scale_x_discrete(labels=c("noind" = "No indirect effect", "ind" = "Parental\nindirect effect", 
                             "prenatal" = "Pre and post-natal\nparental indirect effect", 
                             "sib"= "Sibling\nindirect effect", "ind_sib"= "Sibling and\nparental indirect effect", 
-                            "AM"= "Assortative mating", "AM_ind"= "Assortative mating and\nparental indirect effect", 
+                            "AM"= "Assortative mating","AM_ind"= "Assortative mating and\nparental indirect effect", 
                             "popstrat"= "Population stratification", "popstrat_ind"= "Population stratification and\nparental indirect effect"))+
   labs(color="Simulated", fill="Designs" )+ 
   geom_segment(data=allfig_truth, # https://stackoverflow.com/questions/45617136/combine-ggplot-facet-wrap-with-geom-segment-to-draw-mean-line-in-scatterplot
@@ -1292,7 +1291,7 @@ ggplot(data=allfig, aes(x=simulation, y=value, fill=design))+
     color = guide_legend(order = 0),
     fill = guide_legend(order = 1)
   )
-#theme(legend.title = element_blank())
+
 
 
 # Figure 3 short ###### 
@@ -1314,16 +1313,16 @@ test <- all %>%
   summarise(mean = mean(value))
 
 test[test$design == "Truth",]
-all$value[which(all$design == "Truth" & all$effect == "direct")] <- 0.319
+all$value[which(all$design == "Truth" & all$effect == "direct")] <- 0.311
 all$value[all$design == "Truth" & all$effect == "indirect" & all$simulation == "noind"] <- 0
-all$value[all$design == "Truth" & all$effect == "indirect" & all$simulation == "ind"] <- 0.101
-all$value[all$design == "Truth" & all$effect == "indirect" & all$simulation == "prenatal"] <- 0.101
+all$value[all$design == "Truth" & all$effect == "indirect" & all$simulation == "ind"] <- 0.139
+all$value[all$design == "Truth" & all$effect == "indirect" & all$simulation == "prenatal"] <- 0.139
 all$value[all$design == "Truth" & all$effect == "indirect" & all$simulation == "sib"] <- 0
-all$value[all$design == "Truth" & all$effect == "indirect" & all$simulation == "ind_sib"] <- 0.101
-all$value[all$design == "Truth" & all$effect == "indirect" & all$simulation == "AM_ind"] <- 0.101
+all$value[all$design == "Truth" & all$effect == "indirect" & all$simulation == "ind_sib"] <- 0.139
+all$value[all$design == "Truth" & all$effect == "indirect" & all$simulation == "AM_ind"] <- 0.139
 all$value[all$design == "Truth" & all$effect == "indirect" & all$simulation == "AM"] <- 0
-all$value[which(all$design == "Truth" & all$effect == "direct" & all$simulation == "popstrat_ind")] <- 0.240
-all$value[all$design == "Truth" & all$effect == "indirect" & all$simulation == "popstrat_ind"] <- 0.0758
+all$value[which(all$design == "Truth" & all$effect == "direct" & all$simulation == "popstrat_ind")] <- 0.231
+all$value[all$design == "Truth" & all$effect == "indirect" & all$simulation == "popstrat_ind"] <- 0.103
 all$value[all$design == "Truth" & all$effect == "indirect" & all$simulation == "popstrat"] <- 0
 
 allfig <- all[which(all$design != "Truth"),] 
@@ -1341,6 +1340,7 @@ ggplot(data=allfig, aes(x=simulation, y=value, fill=design))+
   theme_minimal(base_size = 20)+
   theme(panel.grid=element_blank())+ 
   ylab("Estimated parental indirect genetic effects") + 
+  #coord_cartesian(ylim=c(-0.2, 0.5))+
   xlab("Components and biases included in simulated data")+
   #ggtitle("Estimated parental indirect genetic effects")+ #, subtitle= "100 * N = 20000" genetic effects"
   # scale_x_discrete(labels=c("noind" = "No indirect\neffect", "ind" = "Parental\nindirect\neffect", 
