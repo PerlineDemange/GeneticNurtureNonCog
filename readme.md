@@ -17,3 +17,4 @@ More information on the GWAS-by-subtraction are available in the associated publ
 6. Analyses in UKBiobank with [adoptees](https://github.com/PerlineDemange/GeneticNurtureNonCog/tree/master/UKB/Adoptees) and [siblings](https://github.com/PerlineDemange/GeneticNurtureNonCog/tree/master/UKB/Siblings) subsets.
 7. [Meta-analyses of the PGS results](https://github.com/PerlineDemange/GeneticNurtureNonCog/tree/master/Meta-analysis) 
 8. [Figures](https://github.com/PerlineDemange/GeneticNurtureNonCog/tree/master/Figures)
+9. [Simulations](https://github.com/PerlineDemange/GeneticNurtureNonCog/tree/master/Simulation)
