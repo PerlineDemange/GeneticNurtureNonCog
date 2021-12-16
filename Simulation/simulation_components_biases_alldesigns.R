@@ -1,10 +1,15 @@
+# Code for the simulation 
+# Please find the function to run the simulation from line 5
+# We set parameters and run the function 100 times from line 1121 
+# We plot results from line 1158
+
 
 # Function #################
 
 run_sim <- function(sample_size, number_snp, var_g, var_mother, var_father, var_sibling, var_prenatal, r.assortment, env_conf){
   # Function to run create simulated data with different components of indirect genetic effects and biases
   # and estimate the parental indirect genetic effect using 4 different designs.
-  # Additionnally we compare 3 different versions of the sibling design, which shows us that using the population effect is the appropriate version
+  # Additionally we compare 3 different versions of the sibling design, which shows us that using the population effect is the appropriate version
   # Arguments of the function are: 
   # sample_size: sample size of target population 
   # number_snp: number of snps per genotype used in the simulation
@@ -14,22 +19,26 @@ run_sim <- function(sample_size, number_snp, var_g, var_mother, var_father, var_
   # var_sibling: variance explained by the sibling genotype 
   # var_prenatal: variance explained by the mother genotype (before birth)
   # r.assortment: correlation between parents' phenotypes 
-  # env_conf: environmental confounding, mean of the second populaiton used for simulating population stratification (mean of the first population is 0)
+  # env_conf: environmental confounding, mean of the second population used for simulating population stratification (mean of the first population is 0)
   
   # 1. WITHOUT ASSORTMENT AND POPSTRAT ------
-  # 1.1 CREATE PGS --------
+  ## 1.1 CREATE true and GWAS PGS --------
+  ### 1.1.1 Simulate true and GWAS SNP effects #### 
   
   number_snp <- number_snp
   
-  # Make effect sizes for the effect of the SNPs on the trait
+  # Make 'true' effect sizes for the effect of the SNPs on the trait
   true_eff <- rnorm(number_snp)
+  
+  # Make GWAS effect sizes for the effect of the SNPs on the trait
   shrink_eff <- rnorm(number_snp)
-  GWAS_eff <- sqrt(.2)*true_eff + sqrt(.8)*shrink_eff
+  GWAS_eff <- sqrt(.2)*true_eff + sqrt(.8)*shrink_eff #GWAS effects are based on the true SNP effects with some error (shrinkage) 
   m.error <- cor(GWAS_eff,true_eff)
   
   # make true MAF's for number_snp SNPs
   maf <- runif(number_snp,.1,.5)
   
+  ### 1.1.2 Create genotypes ###############
   # make bi-allelic SNP calls from number_snp SNPs in sample_size mothers, sample_size fathers
   # and their kids, a non-transmitted PRS and an adopted kid
   n <- sample_size
@@ -92,7 +101,7 @@ run_sim <- function(sample_size, number_snp, var_g, var_mother, var_father, var_
     biological_fathers <- cbind(biological_fathers,biological_father)
   }
   
-
+  ### 1.1.3 Create 'true' genetic scores ##### 
   # multiply the beta and the SNPs and sum to a perfect PRS:
   mother_g <- true_eff %*% t(mothers)
   father_g<- true_eff %*% t(fathers)
@@ -114,6 +123,7 @@ run_sim <- function(sample_size, number_snp, var_g, var_mother, var_father, var_
   sib_g <- scale(t(sib_g))
   adoptee_g <- scale(t(adoptee_g))
 
+  ### 1.1.4 Create GWAS polygenetic scores - as if measured ##### 
   # multiply the beta and the SNPs and sum to a PRS:
   mother_prs_noam <- GWAS_eff %*% t(mothers)
   father_prs_noam <- GWAS_eff %*% t(fathers)
@@ -131,6 +141,8 @@ run_sim <- function(sample_size, number_snp, var_g, var_mother, var_father, var_
   adoptee_prs_noam <- scale(t(adoptee_prs_noam))
   
   ## 1.2. SIMULATE TRAITS -------
+  # Traits are simulated using the true genetic scores 
+  
   ### 1.2.1 No indirect effects: ----------------------------------------------------------------------------------------
   
   var_e <- 1 - var_g
@@ -230,8 +242,9 @@ run_sim <- function(sample_size, number_snp, var_g, var_mother, var_father, var_
   
   
   # 2. With assortative mating: ------------------------------------------------------------------------------------------------------------------
-  # 2.1 CREATE PGS ------
+  ## 2.1 CREATE true and GWAS PGS ------
   
+  ### 2.1.2 Create genotype ######
   # make bi-allelic SNP calls from 100 SNPs in mothers, fathers
   # and their kids, a non-transmitted PRS and an adopted kids (which have their own biological parents simulated # make the first "SNP" for n people:
   mothers <- rbinom(n,size = 2,prob = maf[1])
@@ -263,7 +276,7 @@ run_sim <- function(sample_size, number_snp, var_g, var_mother, var_father, var_
   biological_mother_g <- scale(t(biological_mother_g))
   biological_father_g <- scale(t(biological_father_g))
   
-  #make the parent phenotypes
+  ### 2.1.2 Make the parent phenotypes #####
   var_e <- 1 - var_g 
   var_e_parental <- 1 - (var_father + var_mother)
   
@@ -272,15 +285,17 @@ run_sim <- function(sample_size, number_snp, var_g, var_mother, var_father, var_
   biological_mother_trait_assortative <- sqrt(var_g)*biological_mother_g + sqrt(var_e)*rnorm(n)
   biological_father_trait_assortative <- sqrt(var_g)*biological_father_g + sqrt(var_e)*rnorm(n)
   
-  ### ASSORTMENT ###
+  ### 2.1.3. ASSORTMENT #####
   # phenotype correlation between mates
   r = r.assortment
   vp <- (var(mother_trait_assortative) + var(father_trait_assortative)) / 2
   bvp <- (var(biological_mother_trait_assortative) + var(biological_father_trait_assortative)) / 2
   
   # create mate selection noise, proportional to r (ie. decreases with r)
-  var_mate = (-2 * r * vp + sqrt(2 * r^2 * vp^2 - 2 * r^2 * vp^2 + 4 * vp^2)) / (2 * r)
-  bvar_mate = (-2 * r * bvp + sqrt(2 * r^2 * bvp^2 - 2 * r^2 * bvp^2 + 4 * bvp^2)) / (2 * r)
+  #var_mate = (-2 * r * vp + sqrt(2 * r^2 * vp^2 - 2 * r^2 * vp^2 + 4 * vp^2)) / (2 * r)
+  var_mate = vp * (-r + 1)  / r
+  #bvar_mate = (-2 * r * bvp + sqrt(2 * r^2 * bvp^2 - 2 * r^2 * bvp^2 + 4 * bvp^2)) / (2 * r)
+  bvar_mate = bvp * (-r + 1)  / r
   # mother and father are independently rank ordered by phenotype (with noise), then matched according to rank_pm = order(mother_t4 + (as.vector(sqrt(var_mate)) * rnorm(n)))
   rank_pm = order(mother_trait_assortative + (as.vector(sqrt(var_mate)) * rnorm(n)))
   rank_pf = order(father_trait_assortative + (as.vector(sqrt(var_mate)) * rnorm(n)))
@@ -336,11 +351,13 @@ run_sim <- function(sample_size, number_snp, var_g, var_mother, var_father, var_
     adoptees <- cbind(adoptees,adoptee)
   }
     
-  # Reorder the parental phenotypes bofore influencing the kids
+  # Reorder the parental phenotypes before influencing the kids
   mother_trait_assortative <- mother_trait_assortative[rank_pm][samp1]
   father_trait_assortative <- father_trait_assortative[rank_pf][samp1]
   biological_mother_trait_assortative <- biological_mother_trait_assortative[brank_pm][samp2]
   biological_father_trait_assortative <- biological_father_trait_assortative[brank_pf][samp2]
+  
+  ### 2.1.4 Create true genetic scores ####
   # multiply the beta and the SNPs and sum to a perfect PRS:
   child_g<- true_eff %*% t(children)
   ntc_g <- true_eff %*% t(ntc)
@@ -352,6 +369,7 @@ run_sim <- function(sample_size, number_snp, var_g, var_mother, var_father, var_
   sib_g <- scale(t(sib_g))
   adoptee_g <- scale(t(adoptee_g))
   
+  ### 2.1.5 Create GWAS genetic scores ####
   # multiply the beta and the SNPs and sum to a PRS:
   mother_prs_am <- GWAS_eff %*% t(mothers)
   father_prs_am <- GWAS_eff %*% t(fathers)
@@ -390,18 +408,16 @@ run_sim <- function(sample_size, number_snp, var_g, var_mother, var_father, var_
   # 3. Population stratification -------------------------------------------------------------------------------------------------------------------
   ## 3.1 CREATE PGS -----------------------
   
-  # Make two populations 
+  ### 3.1.1  Make two subpopulations with different MAF ####
   n <- .5* sample_size #(we make 2 pops, each .5n)
-  
-  # Make effect sizes for the effect of the SNPs on the trait
-  #true_eff <- rnorm(number_snp)
   
   # make true MAF's for number_snp SNPs
   maf <- runif(number_snp,.1,.5)
   maf2 <- runif(number_snp,.1,.5)
   
-  ## run a GWAS: #####
-  # The GWAS is run in a population containing two subpopulations, with different maf and different phenotype mean
+  ### 3.1.2 Run a GWAS to get GWAS SNP effects (with popstrat)#####
+  # The GWAS is run in a population containing two subpopulations,
+  # with different maf and different phenotype mean
   SNPs1 <- rbinom(n,size = 2,prob = maf[1])
   SNPs2 <- rbinom(n,size = 2,prob = maf2[1])
   for(i in 2:number_snp){ 
@@ -416,7 +432,8 @@ run_sim <- function(sample_size, number_snp, var_g, var_mother, var_father, var_
   SNP_g <-  true_eff %*% t(SNPs)
   
   env_conf <- env_conf
-  GWAS_t  <- sqrt(var_g)*SNP_g + sqrt(1-var_g)*as.numeric(scale(c(rnorm(n),rnorm(n,env_conf,1)))) #this creates different noise for both populaitons, with one population with a mean of 0 and the second populaiton with a mean of 1  
+  GWAS_t  <- sqrt(var_g)*SNP_g + sqrt(1-var_g)*as.numeric(scale(c(rnorm(n),rnorm(n,env_conf,1)))) 
+  #this creates different noise for both populations, with one population with a mean of 0 and the second population with a mean of 1  
   GWAS_t <- as.vector(GWAS_t)
   GWAS_eff <- lm(GWAS_t ~ SNPs)  
   
@@ -427,7 +444,7 @@ run_sim <- function(sample_size, number_snp, var_g, var_mother, var_father, var_
   m.error2 <- cor(GWAS_eff,GWAS_eff1)
   
 
-  ### Create the target populations #### 
+  ### 3.1.3 Create the genotypes of the target populations #### 
   # the target population contains the same two subpopulations as the GWAS 
   
   # POP 1
@@ -548,7 +565,7 @@ run_sim <- function(sample_size, number_snp, var_g, var_mother, var_father, var_
     bfathers.2 <- cbind(bfathers.2,bfather.2)
   }
   
-  #Combine populations
+  # Combine populations
   mothers <- rbind(mothers,mothers.2)
   fathers <- rbind(fathers,fathers.2)
   children <- rbind(children,children.2)
@@ -558,11 +575,13 @@ run_sim <- function(sample_size, number_snp, var_g, var_mother, var_father, var_
   bfathers <- rbind(bfathers,bfathers.2)
   adoptees <- rbind(adoptees,adoptees.2)
   
-  ##### OPTIONAL BUT IMPORTANT, cross ancestry adoption
+  # In our simulation we simulate the simple situation of adoptees being adopted in their own subpopulation
+  
+  #### 3.1.3.1 OPTIONAL BUT IMPORTANT, possibility of cross ancestry adoption #####
   # Several cases possible (among others): 
   # adoptees are adopted in the same subpopulation
   # adoptees are adopted in the alternative subpopulation 
-  # part of supopulation is "moving" and has noise corresponding to the other population
+  # part of subopulation is "moving" and has noise corresponding to the other population
   # 
 # 
 #   half10min <- sample_size/2 - sample_size*0.10
@@ -573,8 +592,8 @@ run_sim <- function(sample_size, number_snp, var_g, var_mother, var_father, var_
 #   bfathers <- rbind(bfathers[1:half10min,],bfathers[(half10max+1):sample_size,],bfathers[(half10min+1):half10max,])
 #   
   
-  # 
-  # make genetic score 
+  
+  ###3.1.4 Create true genetic score ####
   # multiply the beta and the SNPs and sum to a perfect PRS:
   mother_g <- true_eff %*% t(mothers)
   father_g<- true_eff %*% t(fathers)
@@ -595,6 +614,7 @@ run_sim <- function(sample_size, number_snp, var_g, var_mother, var_father, var_
   sib_g <- scale(t(sib_g))
   adoptee_g <- scale(t(adoptee_g))
   
+  ### 3.1.5. Create the GWAS PGS #####
   # multiply the beta and the SNPs and sum to a PRS:
   mother_prs_popstrat <- GWAS_eff %*% t(mothers)
   father_prs_popstrat <- GWAS_eff %*% t(fathers)
@@ -602,7 +622,6 @@ run_sim <- function(sample_size, number_snp, var_g, var_mother, var_father, var_
   ntc_prs_popstrat <-  GWAS_eff %*% t(ntc)
   sib_prs_popstrat <- GWAS_eff %*% t(sibs)
   adoptee_prs_popstrat <-  GWAS_eff %*% t(adoptees)
-  
   
   # scale genetic scores:
   mother_prs_popstrat <- scale(t(mother_prs_popstrat))
@@ -669,7 +688,7 @@ run_sim <- function(sample_size, number_snp, var_g, var_mother, var_father, var_
   indirect_kong_popstrat_ind<- kong_popstrat_ind$coef[3,1]
   
   ## ---------------------------------------------------------------------------------------------------------------------------------------------
-  ## 4.2. perform adoption PRS analysis: ----------------------------------------------------------------------------
+  ## 4.2. perform adoption PGS analysis: ----------------------------------------------------------------------------
   cheesman_noind_adopt <- summary(lm(adoptee_trait_noind ~ adoptee_prs_noam ))
   cheesman_noind_bio <- summary(lm(child_trait_noind ~ child_prs_noam ))
   
@@ -720,7 +739,11 @@ run_sim <- function(sample_size, number_snp, var_g, var_mother, var_father, var_
   indirect_cheesman_popstrat_ind <- cheesman_popstrat_ind_bio$coef[2,1] - cheesman_popstrat_ind_adopt$coef[2,1]
   
   ## ---------------------------------------------------------------------------------------------------------------------------------------------
-  ## 4.3 perform sib PRS analysis: -----------------------------------------------------------------------
+  ## 4.3 perform siblings PGS analysis: -----------------------------------------------------------------------
+  # We run 3 different siblings designs: comparing the within-sibling effect to the between-sibling effect, 
+  # to the population effect, and to the total effect (as defined in Selzam et al.)
+  
+  
   between_noam <- .5*(child_prs_noam + sib_prs_noam)
   within_noam <- child_prs_noam - between_noam
   
@@ -1097,6 +1120,7 @@ run_sim <- function(sample_size, number_snp, var_g, var_mother, var_father, var_
 } 
 
 # Run simulation ##########################################################################
+
 library(tidyverse)
 library(data.table)
 
@@ -1128,7 +1152,7 @@ for (simulation in 1:len){
 
 
 save(all_simulations, file="all_simulations_100_20000_biggereffects_popstrat_210616.Rda")
-#load("all_simulations_100_20000_biggereffects_210510.Rda")
+load("all_simulations_100_20000_biggereffects_popstrat_210616.Rda")
 
 
 # Figures #############################################################################
@@ -1151,7 +1175,7 @@ total_results_long<- melt(data          = all_simulations,
 
 
 
-# Figure Compare different Sibling designs ######
+#1. Figure Compare different Sibling designs ######
 
 sib <- total_results_long[which(total_results_long$design == "Truth" | 
                                    total_results_long$design == "Sibling" | 
@@ -1209,21 +1233,7 @@ ggplot(data=sibfig, aes(x=simulation, y=value, fill=design))+
     )
   #theme(legend.title = element_blank())
 
-# Figure compare lme ######
-short <- total_results_long[which(total_results_long$design == "Truth" | 
-                                    total_results_long$design == "Non-transmitted" | 
-                                    total_results_long$design == "Sibling - population"),]
-
-
-ggplot(data=short, aes(x=simulation, y=value, fill=design))+ 
-  #geom_violin()+ 
-  #geom_boxplot(width=0.1)+
-  geom_boxplot()+
-  facet_wrap(~ effect)+ 
-  ggtitle("Simulated effects 100* N = 20000 - LM")
-
-
-# Figure Compare core designs for all conditions ######
+#2. Supp Fig.  Figure Compare core designs for all conditions ######
 
 all <- total_results_long[which(total_results_long$design == "Truth" | 
                                   total_results_long$design == "Sibling - population"| 
@@ -1294,7 +1304,7 @@ ggplot(data=allfig, aes(x=simulation, y=value, fill=design))+
 
 
 
-# Figure 3 short ###### 
+#3. Figure 3 short ###### 
 
 all <- total_results_long[which(total_results_long$design == "Truth" | 
                                   total_results_long$design == "Sibling - population"| 
@@ -1332,12 +1342,12 @@ allfig <- allfig[which(allfig$effect != "Direct effect"),]
 allfig_truth <- allfig_truth[which(allfig_truth$effect != "Direct effect"),] 
 
 
-ggplot(data=allfig, aes(x=simulation, y=value, fill=design))+ 
+p <- ggplot(data=allfig, aes(x=simulation, y=value, fill=design))+ 
   #geom_violin()+ 
   #geom_boxplot(width=0.1)+
   geom_boxplot(outlier.shape=NA, aes(middle=median(value)))+ #get median or mean 
   #facet_wrap(~ effect)+ 
-  theme_minimal(base_size = 20)+
+  theme_minimal(base_size = 18)+
   theme(panel.grid=element_blank())+ 
   ylab("Estimated parental indirect genetic effects") + 
   #coord_cartesian(ylim=c(-0.2, 0.5))+
@@ -1348,11 +1358,11 @@ ggplot(data=allfig, aes(x=simulation, y=value, fill=design))+
   #                           "sib"= "Sibling\nindirect\neffect", "ind_sib"= "Sibling\nand\nparental\nindirect\neffect", 
   #                           "AM"= "Assortative\nmating", "AM_ind"= "Assortative\nmating\nand\nparental\nindirect\neffect"))+
   theme(axis.text.x = element_text(angle = 45, hjust=1))+ #rotate labels
-  scale_x_discrete(labels=c("noind" = "No indirect effect", "ind" = "Parental\nindirect effect", 
-                            "prenatal" = "Pre and post-natal\nparental indirect effect", 
-                            "sib"= "Sibling\nindirect effect", "ind_sib"= "Sibling and\nparental indirect effect", 
-                            "AM"= "Assortative mating", "AM_ind"= "Assortative mating and\nparental indirect effect",
-                            "popstrat"= "Population stratification", "popstrat_ind"= "Population stratification and\nparental indirect effect"))+
+  scale_x_discrete(labels=c("noind" = "1. No indirect effect", "ind" = "2. Parental indirect effect", 
+                            "prenatal" = "3. Pre and post-natal\nparental indirect effect", 
+                            "sib"= "4. Sibling indirect effect", "ind_sib"= "5. Sibling and\nparental indirect effect", 
+                            "AM"= "6. Assortative mating", "AM_ind"= "7. Assortative mating and\nparental indirect effect",
+                            "popstrat"= "8. Population stratification", "popstrat_ind"= "9. Population stratification and\nparental indirect effect"))+
   labs(color="Simulated", fill="Designs" )+ 
   geom_segment(data=allfig_truth, # https://stackoverflow.com/questions/45617136/combine-ggplot-facet-wrap-with-geom-segment-to-draw-mean-line-in-scatterplot
                aes(x=as.numeric(simulation) - 0.45,y=mean, xend=as.numeric(simulation) +0.45, yend=mean, color="red"),
@@ -1366,7 +1376,7 @@ ggplot(data=allfig, aes(x=simulation, y=value, fill=design))+
   )
 #theme(legend.title = element_blank())
 
-
+p
 
 
 
