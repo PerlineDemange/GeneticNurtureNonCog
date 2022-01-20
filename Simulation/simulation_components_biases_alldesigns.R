@@ -1211,7 +1211,7 @@ sibfig_truth$effect <- factor(sibfig_truth$effect, levels = c("direct", "indirec
 ggplot(data=sibfig, aes(x=simulation, y=value, fill=design))+ 
   #geom_violin()+ 
   #geom_boxplot(width=0.1)+
-  geom_boxplot(outlier.shape=NA, aes(middle=median(value)))+ #get median or mean 
+  geom_boxplot(outlier.shape=NA)+ 
   facet_wrap(~ effect)+ 
   theme_minimal(base_size = 22)+
   theme(panel.grid=element_blank())+ 
@@ -1273,7 +1273,7 @@ allfig_truth <- test[which(test$design == "Truth"),]
 ggplot(data=allfig, aes(x=simulation, y=value, fill=design))+ 
   #geom_violin()+ 
   #geom_boxplot(width=0.1)+
-  geom_boxplot(outlier.shape=NA, aes(middle=mean(value)))+ #get median or mean 
+  geom_boxplot(outlier.shape=NA)+ 
   facet_wrap(~ effect)+ 
   theme_minimal(base_size = 22)+
   theme(panel.grid=element_blank())+ 
@@ -1345,7 +1345,7 @@ allfig_truth <- allfig_truth[which(allfig_truth$effect != "Direct effect"),]
 p <- ggplot(data=allfig, aes(x=simulation, y=value, fill=design))+ 
   #geom_violin()+ 
   #geom_boxplot(width=0.1)+
-  geom_boxplot(outlier.shape=NA, aes(middle=median(value)))+ #get median or mean 
+  geom_boxplot(outlier.shape=NA)+
   #facet_wrap(~ effect)+ 
   theme_minimal(base_size = 18)+
   theme(panel.grid=element_blank())+ 
@@ -1377,7 +1377,4 @@ p <- ggplot(data=allfig, aes(x=simulation, y=value, fill=design))+
 #theme(legend.title = element_blank())
 
 p
-
-
-
 
