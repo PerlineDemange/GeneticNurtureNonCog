@@ -13,6 +13,49 @@ library(psych)
 library(readr)
 library(stringr)
 
+# Alternative Fig 2.A 
+
+all <- read_csv("../Meta-analysis/meta_all_20210519.csv")
+all$Effect <- factor(all$Effect, levels=c( "Direct","Indirect"))
+all$PGS <- factor(all$PGS, levels=c("NonCog","Cog"))
+all$PGSxEffect <- paste(all$PGS, all$Effect)
+all$PGSxEffect <- factor(all$PGSxEffect, levels=c("NonCog Direct",  "NonCog Indirect","Cog Direct","Cog Indirect"))
+
+all$blob<-ifelse(all$PGSxEffect=="NonCog Direct",1,
+                 ifelse(all$PGSxEffect=="NonCog Indirect",2,
+                        ifelse(all$PGSxEffect=="Cog Direct",3,
+                               ifelse(all$PGSxEffect=="Cog Indirect",4,NA))))
+
+all <- all[order(all$blob),]
+
+
+tiff("Fig2A_alt_20210928.tiff")
+plot <- 
+  ggplot(all, aes(y=estimate, x=PGS)) +
+  geom_point(aes(x=PGS, y=estimate, color = factor(PGSxEffect)), size=7,position = position_dodge(.6))+#,position = position_dodge(4))+
+  geom_errorbar(aes(x=PGS,ymin=ci.lb, ymax=ci.ub, color = factor(PGSxEffect)),  width=.6,size= 1, position = position_dodge(.6)) +#, position=position_dodge(4)) + 
+  theme_bw(base_size = 14)+
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_text(size = 14),
+        legend.title=element_blank(),
+        #axis.ticks.x=element_blank(),
+        axis.text.y=element_text(size = 14),
+        strip.text.x = element_text(size = 14), 
+        axis.title.y = element_text(size = 14, margin=margin(t=0,r=2, b=0, l=0, unit="lines")),
+        strip.background=element_rect(fill="white"),
+        panel.background=element_blank(),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(), 
+        legend.key.size = unit(3, "lines"), 
+        legend.text = element_text(size=14, margin = margin(t=1, b=1, unit="lines")))+
+  labs(y = "Effect of polygenic score on educational outcome", x = " ") +
+  scale_color_manual(values=c("#ff9900","#ffcc66", "#0033cc", "#3399ff")) +
+  #ggtitle("C. Educational attainment by method") +
+  geom_hline(yintercept=0, linetype="dashed")
+  #geom_vline(xintercept=1.5, linetype="dotted")
+#scale_shape_manual(values=c(21, 24, 25, 22, 23, 18)) 
+plot
+dev.off()
 
 # 1. (Fig 2.A) make a stacked bar plot for overall metaanalysed results ###########################
 all <- read_csv("../Meta-analysis/meta_all_20210519.csv")
