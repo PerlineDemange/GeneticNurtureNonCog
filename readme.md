@@ -1,6 +1,6 @@
-# Parental influences on offspring education: indirect genetic effects of non-cognitive skills
+# Estimating effects of parents’ cognitive and non-cognitive skills on offspring education using polygenic scores
 
-Scripts used for the project "Parental influences on offspring education: indirect genetic effects of non-cognitive skills". 
+Scripts used for the project "Estimating effects of parents’ cognitive and non-cognitive skills on offspring education using polygenic scores". 
 
 Here you can find the [preprint](https://www.biorxiv.org/content/10.1101/2020.09.15.296236v3) of this project, and the pre-registration as well as slides of associated presentations on our [OSF page](https://osf.io/mk938/).
 
